@@ -1,6 +1,5 @@
 package es.altia.domeadapter.backend.shared.domain.service.impl;
 
-
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSVerifier;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
@@ -156,4 +155,3 @@ public class VerifierServiceImpl implements VerifierService {
                         .onErrorMap(e -> new TokenFetchException("Error fetching the token", e)));
     }
 }
-

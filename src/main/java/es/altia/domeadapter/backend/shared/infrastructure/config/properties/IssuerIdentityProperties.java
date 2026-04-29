@@ -1,6 +1,5 @@
 package es.altia.domeadapter.backend.shared.infrastructure.config.properties;
 
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -25,4 +24,3 @@ public record IssuerIdentityProperties(
     public record Crypto(@NotBlank String privateKey) {
     }
 }
-

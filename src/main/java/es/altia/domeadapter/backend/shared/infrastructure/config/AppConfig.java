@@ -1,10 +1,10 @@
 package es.altia.domeadapter.backend.shared.infrastructure.config;
 
-import es.altia.domeadapter.backend.shared.infrastructure.config.properties.IssuerIdentityProperties;
 import es.altia.domeadapter.backend.shared.infrastructure.config.adapter.ConfigAdapter;
 import es.altia.domeadapter.backend.shared.infrastructure.config.adapter.factory.ConfigAdapterFactory;
 import es.altia.domeadapter.backend.shared.infrastructure.config.properties.AppProperties;
 import es.altia.domeadapter.backend.shared.infrastructure.config.properties.CorsProperties;
+import es.altia.domeadapter.backend.shared.infrastructure.config.properties.IssuerIdentityProperties;
 import es.altia.domeadapter.backend.shared.infrastructure.config.properties.RetryProperties;
 import org.springframework.context.annotation.Configuration;
 
