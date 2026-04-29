@@ -1,0 +1,39 @@
+spring:
+  r2dbc:
+    url: r2dbc:h2:mem:///testdb?options=DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+  flyway:
+    enabled: false
+  mail:
+    host: localhost
+    port: 1025
+    username: test
+    password: test
+    properties.mail.smtp:
+      auth: true
+      starttls.enable: false
+      ssl.trust: "*"
+
+app:
+  verifier-url: https://verifier.example.com
+  issuer-url: https://issuer.example.com
+  default-lang: en
+  config-source: yaml
+
+cors:
+  external-allowed-origins:
+    - https://marketplace.example.com
+
+issuer-identity:
+  credential-subject-did-key: did:key:testkey
+  jwt-credential: eyJhbGciOiJFUzI1NiJ9.e30.test
+  crypto:
+    private-key: "0000000000000000000000000000000000000000000000000000000000000001"
+
+retry:
+  knowledge-base:
+    upload-certification-guide-url: https://docs.example.com/guide
+  label-upload:
+    certifier-email: certifier@example.com
+    marketplace-email: marketplace@example.com
