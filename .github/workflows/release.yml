@@ -1,0 +1,140 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release-snapshot:
+    if: github.event_name == 'pull_request'
+    name: Release Snapshot
+    concurrency:
+      group: docker-${{ github.head_ref || github.ref_name }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: 'gradle'
+
+      - name: Make Gradlew Executable
+        run: chmod +x ./gradlew
+
+      - name: Get Project Name
+        run: echo "PROJECT_NAME=$(./gradlew -q properties | grep '^name:' | awk '{print $2}')" >> $GITHUB_ENV
+
+      - name: Get Project Version
+        run: echo "VERSION=$(./gradlew -q properties | grep '^version:' | awk '{print $2}')" >> $GITHUB_ENV
+
+      - name: Compute PR-based snapshot suffix
+        run: echo "SNAPSHOT_SUFFIX=-pr-${{ github.event.number }}" >> $GITHUB_ENV
+
+      - name: Check for existing release tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ env.VERSION }}
+        run: |
+          TAG_EXISTS=$(curl -H "Authorization: token $GITHUB_TOKEN" -s https://api.github.com/repos/${{ github.repository }}/releases | jq -r ".[] | select(.tag_name == \"v$VERSION\") | .tag_name")
+
+          if [ "$TAG_EXISTS" == "v$VERSION" ]; then
+            echo "Release tag v$VERSION already exists. Rejecting PR."
+            exit 1
+          fi
+
+          echo "No existing release with tag v$VERSION found. Proceeding with build."
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PAT }}
+
+      - name: Build and Push Docker image
+        env:
+          PROJECT_NAME: ${{ env.PROJECT_NAME }}
+          VERSION: ${{ env.VERSION }}
+          SNAPSHOT_SUFFIX: ${{ env.SNAPSHOT_SUFFIX }}
+          DOCKERHUB_ORG: ${{ secrets.DOCKERHUB_ORG }}
+        run: |
+          set -euo pipefail
+
+          TAG="v${VERSION}${SNAPSHOT_SUFFIX}"
+          IMAGE="docker.io/${DOCKERHUB_ORG}/${PROJECT_NAME}:${TAG}"
+
+          docker build -f Dockerfile --build-arg SKIP_TESTS=true -t "${IMAGE}" .
+          docker push "${IMAGE}"
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Make Gradlew Executable
+        run: chmod +x ./gradlew
+
+      - name: Get Project Name
+        run: echo "PROJECT_NAME=$(./gradlew -q properties | grep '^name:' | awk '{print $2}')" >> $GITHUB_ENV
+
+      - name: Get Project Version
+        run: echo "VERSION=$(./gradlew -q properties | grep '^version:' | awk '{print $2}')" >> $GITHUB_ENV
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PAT }}
+
+      - name: Build and Push Docker image
+        env:
+          PROJECT_NAME: ${{ env.PROJECT_NAME }}
+          VERSION: ${{ env.VERSION }}
+          DOCKERHUB_ORG: ${{ secrets.DOCKERHUB_ORG }}
+        run: |
+          set -euo pipefail
+
+          TAG="v${VERSION}"
+          IMAGE="docker.io/${DOCKERHUB_ORG}/${PROJECT_NAME}:${TAG}"
+          LATEST_IMAGE="docker.io/${DOCKERHUB_ORG}/${PROJECT_NAME}:latest"
+
+          docker build -f Dockerfile --build-arg SKIP_TESTS=true -t "${IMAGE}" .
+          docker tag "${IMAGE}" "${LATEST_IMAGE}"
+
+          docker push "${IMAGE}"
+          docker push "${LATEST_IMAGE}"
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v${{ env.VERSION }}"
+          release_name: "v${{ env.VERSION }}"
+          body: "Release of version v${{ env.VERSION }}"
+          draft: false
+          prerelease: false
