@@ -1,6 +1,7 @@
 package es.altia.domeadapter.backend;
 
-import es.altia.domeadapter.backend.DomeAdapterApplication;
+
+import es.altia.domeadapter.DomeAdapterApplication;
 import org.springframework.boot.SpringApplication;
 
 public class TestDomeAdapterApplication {
