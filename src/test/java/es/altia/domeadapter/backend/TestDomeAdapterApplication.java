@@ -1,4 +1,4 @@
-package es.altia.domeadapter;
+package es.altia.domeadapter.backend;
 
 import es.altia.domeadapter.backend.DomeAdapterApplication;
 import org.springframework.boot.SpringApplication;
