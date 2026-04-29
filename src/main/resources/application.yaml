@@ -4,22 +4,22 @@ spring:
   main:
     web-application-type: reactive
   r2dbc:
-    url:
-    username:
-    password:
+    url: r2dbc:postgresql://localhost:5432/dome_adapter
+    username: mock_user
+    password: mock_password
   flyway:
-    url:
+    url: jdbc:postgresql://localhost:5432/dome_adapter
     locations: classpath:db/migration
     default-schema: dome_adapter
   mail:
-    host:
-    port:
-    username:
-    password:
+    host: smtp.mock.local
+    port: 587
+    username: mock_mail_user
+    password: mock_mail_password
     properties.mail.smtp:
       auth: true
       starttls.enable: true
-      ssl.trust:
+      ssl.trust: smtp.mock.local
   messages:
     basename: messages/messages
 
@@ -59,9 +59,9 @@ springdoc:
 
 app:
   # URL of the external verifier (for token validation and M2M token acquisition)
-  verifier-url:
+  verifier-url: https://mock-verifier.example.com
   # URL of the external issuer (for forwarding issuance requests and for token validation)
-  issuer-url:
+  issuer-url: https://mock-issuer.example.com
   # Default language for email notifications (OPTIONAL, default: en)
   default-lang: en
   # Configuration source: yaml (OPTIONAL, default: yaml)
@@ -69,23 +69,25 @@ app:
 
 issuer-identity:
   # DID:key of this service's credential subject (for M2M token)
-  credential-subject-did-key:
+  credential-subject-did-key: did:key:zMockCredentialSubjectDidKey123456789
   # Base64-encoded JWT machine credential (for M2M token)
-  jwt-credential:
+  jwt-credential: eyJtb2NrIjoiand0LWNyZWRlbnRpYWwifQ==
   crypto:
     # Hex-encoded secp256r1 private key (for JWT signing)
-    private-key:
+    private-key: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 
 cors:
   # Origins allowed to call POST /api/v1/issuances (e.g. https://marketplace.dome-marketplace.eu)
   external-allowed-origins:
+    - https://mock-marketplace.example.com
+    - http://localhost:4200
 
 retry:
   knowledge-base:
     # URL to the certification upload guide (included in failure/exhaustion emails)
-    upload-certification-guide-url:
+    upload-certification-guide-url: https://mock-docs.example.com/certification-upload-guide
   label-upload:
     # Email address of the certifier to notify on delivery failures
-    certifier-email:
+    certifier-email: certifier.mock@example.com
     # Email address of the marketplace to notify on delivery failures
-    marketplace-email:
+    marketplace-email: marketplace.mock@example.com
