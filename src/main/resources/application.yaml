@@ -1,0 +1,91 @@
+spring:
+  application:
+    name: dome-adapter
+  main:
+    web-application-type: reactive
+  r2dbc:
+    url:
+    username:
+    password:
+  flyway:
+    url:
+    locations: classpath:db/migration
+    default-schema: dome_adapter
+  mail:
+    host:
+    port:
+    username:
+    password:
+    properties.mail.smtp:
+      auth: true
+      starttls.enable: true
+      ssl.trust:
+  messages:
+    basename: messages/messages
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+  level:
+    es.altia.dome_adapter: INFO
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    enabled-by-default: false
+    web:
+      exposure:
+        include: health, prometheus
+      base-path: /
+      path-mapping:
+        health: health
+        prometheus: prometheus
+  endpoint:
+    health:
+      enabled: true
+      show-details: always
+    prometheus:
+      enabled: true
+
+springdoc:
+  api-docs:
+    path: /springdoc/api-docs
+  swagger-ui:
+    path: /springdoc/swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method
+
+app:
+  # URL of the external verifier (for token validation and M2M token acquisition)
+  verifier-url:
+  # URL of the external issuer (for forwarding issuance requests and for token validation)
+  issuer-url:
+  # Default language for email notifications (OPTIONAL, default: en)
+  default-lang: en
+  # Configuration source: yaml (OPTIONAL, default: yaml)
+  config-source: yaml
+
+issuer-identity:
+  # DID:key of this service's credential subject (for M2M token)
+  credential-subject-did-key:
+  # Base64-encoded JWT machine credential (for M2M token)
+  jwt-credential:
+  crypto:
+    # Hex-encoded secp256r1 private key (for JWT signing)
+    private-key:
+
+cors:
+  # Origins allowed to call POST /api/v1/issuances (e.g. https://marketplace.dome-marketplace.eu)
+  external-allowed-origins:
+
+retry:
+  knowledge-base:
+    # URL to the certification upload guide (included in failure/exhaustion emails)
+    upload-certification-guide-url:
+  label-upload:
+    # Email address of the certifier to notify on delivery failures
+    certifier-email:
+    # Email address of the marketplace to notify on delivery failures
+    marketplace-email:
