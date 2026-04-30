@@ -291,11 +291,11 @@ public class ProcedureRetryServiceImpl implements ProcedureRetryService {
                         appConfig.getKnowledgeBaseUploadCertificationGuideUrl()
                 )
                 .doOnSuccess(unused ->
-                        log.info("[NOTIFICATION] Failure email sent to {} for productSpecId: {}, credId: {}", recipientType, productSpecificationId, credentialId)
+                        log.info("[NOTIFICATION] Failure email sent to {} (recipient type: {}) for productSpecId: {}, credId: {}", email, recipientType, productSpecificationId, credentialId)
                 )
                 .onErrorResume(e -> {
-                    log.error("[NOTIFICATION] Failed to send failure email to {} for productSpecId: {}, credId: {}: {}",
-                            recipientType, productSpecificationId, credentialId, e.getMessage());
+                    log.error("[NOTIFICATION] Failed to send failure email to {} (recipient type: {}) for productSpecId: {}, credId: {}: {}",
+                            email, recipientType, productSpecificationId, credentialId, e.getMessage());
                     return Mono.empty();
                 });
     }

@@ -12,14 +12,19 @@ spring:
     locations: classpath:db/migration
     default-schema: dome_adapter
   mail:
-    host:
-    port:
-    username:
-    password:
-    properties.mail.smtp:
-      auth: true
-      starttls.enable: true
-      ssl.trust:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:false}
+          ssl:
+            enable: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE:true}
+            trust: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST:}
   messages:
     basename: messages/messages
 
@@ -66,6 +71,8 @@ app:
   default-lang: en
   # Configuration source: yaml (OPTIONAL, default: yaml)
   config-source: yaml
+  mail:
+    from:
 
 issuer-identity:
   # DID:key of this service's credential subject (for M2M token)
