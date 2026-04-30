@@ -12,6 +12,7 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -39,7 +40,7 @@ public class M2MTokenServiceImpl implements M2MTokenService {
         Map<String, String> parameters = new LinkedHashMap<>();
         parameters.put(OAuth2ParameterNames.GRANT_TYPE, CLIENT_CREDENTIALS_GRANT_TYPE_VALUE);
         parameters.put(OAuth2ParameterNames.CLIENT_ID, appConfig.getCredentialSubjectDidKey());
-        parameters.put(OAuth2ParameterNames.CLIENT_ASSERTION_TYPE, CLIENT_ASSERTION_TYPE_VALUE);
+        parameters.put(OAuth2ParameterNames.CLIENT_ASSERTION_TYPE, URLEncoder.encode(CLIENT_ASSERTION_TYPE_VALUE, StandardCharsets.UTF_8));
         parameters.put(OAuth2ParameterNames.CLIENT_ASSERTION, createClientAssertion());
 
         return parameters.entrySet()
