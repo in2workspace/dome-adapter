@@ -1,6 +1,9 @@
-package es.altia.domeadapter.issuance.infrastructure.service.impl;
+package es.altia.domeadapter.backend.issuance.infrastructure.service.impl;
 
-import es.altia.domeadapter.issuance.infrastructure.service.ExternalIssuanceService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import es.altia.domeadapter.backend.issuance.infrastructure.service.ExternalIssuanceService;
+import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.IssuanceResponse;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
 import lombok.RequiredArgsConstructor;
@@ -22,25 +25,25 @@ import static es.altia.domeadapter.backend.shared.domain.util.EndpointsConstants
 public class ExternalIssuanceServiceImpl implements ExternalIssuanceService {
 
     private final WebClient issuerWebClient;
+    private final ObjectMapper objectMapper;
 
     @Override
-    public Mono<IssuanceResponse> forward(PreSubmittedCredentialDataRequest request, String bearerToken) {
+    public Mono<IssuanceResponse> forward(ExternalPreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
         log.info("[ISSUANCE] Forwarding issuance request to external issuer");
+        logRequest(request);
 
         return issuerWebClient
                 .post()
                 .uri(ISSUANCES_PATH)
                 .contentType(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken)
+                .header("X-ID-Token", idToken)
                 .bodyValue(request)
                 .exchangeToMono(response -> {
                     if (response.statusCode().is2xxSuccessful()) {
                         return response.bodyToMono(IssuanceResponse.class);
                     }
 
-                    // Re-throw the issuer's error verbatim (status + body) so the caller of
-                    // dome-adapter receives exactly what the issuer returned, instead of a
-                    // generic 500 produced by Spring's default error handler.
                     return response.bodyToMono(byte[].class)
                             .defaultIfEmpty(new byte[0])
                             .flatMap(body -> Mono.error(
@@ -53,5 +56,17 @@ public class ExternalIssuanceServiceImpl implements ExternalIssuanceService {
                                     )
                             ));
                 });
+    }
+
+    private void logRequest(ExternalPreSubmittedCredentialDataRequest request) {
+        if (!log.isDebugEnabled()) {
+            return;
+        }
+
+        try {
+            log.debug("[ISSUANCE] External issuer request body: {}", objectMapper.writeValueAsString(request));
+        } catch (JsonProcessingException e) {
+            log.debug("[ISSUANCE] Could not serialize external issuer request body for logging", e);
+        }
     }
 }
