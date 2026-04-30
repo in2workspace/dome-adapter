@@ -1,6 +1,8 @@
-package es.altia.domeadapter.issuance.application;
+package es.altia.domeadapter.backend.issuance.application;
 
-import es.altia.domeadapter.issuance.infrastructure.service.ExternalIssuanceService;
+
+import es.altia.domeadapter.backend.issuance.infrastructure.service.ExternalIssuanceService;
+import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.retry.LabelCredentialDeliveryPayload;
 import es.altia.domeadapter.backend.shared.domain.model.enums.ActionType;
@@ -23,10 +25,18 @@ public class IssuanceLabelWorkflow {
     private final ProcedureRetryService procedureRetryService;
     private final JwtUtils jwtUtils;
 
-    public Mono<Void> execute(PreSubmittedCredentialDataRequest request, String bearerToken) {
-        return externalIssuanceService.forward(request, bearerToken)
+    public Mono<Void> execute(PreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
+        ExternalPreSubmittedCredentialDataRequest externalRequest =
+                ExternalPreSubmittedCredentialDataRequest.builder()
+                        .schema(request.schema())
+                        .payload(request.payload())
+                        .operationMode(request.operationMode())
+                        .email(request.email())
+                        .delivery(request.delivery())
+                        .build();
+        return externalIssuanceService.forward(externalRequest, bearerToken, idToken)
                 .flatMap(response -> {
-                    String signedCredential = response.credential();
+                    String signedCredential = response.signedCredential();
                     if (signedCredential == null || signedCredential.isBlank()) {
                         log.error("[ISSUANCE] External issuer returned empty credential");
                         return Mono.empty();
@@ -34,6 +44,7 @@ public class IssuanceLabelWorkflow {
 
                     UUID credentialId = jwtUtils.extractCredentialId(signedCredential);
                     String productSpecificationId = jwtUtils.extractCredentialSubjectId(signedCredential);
+                    log.info("[ISSUANCE] Credential issued with id={} productSpecId={}", credentialId, productSpecificationId);
 
                     LabelCredentialDeliveryPayload payload = LabelCredentialDeliveryPayload.builder()
                             .responseUri(request.responseUri())
@@ -42,6 +53,7 @@ public class IssuanceLabelWorkflow {
                             .email(request.email())
                             .signedCredential(signedCredential)
                             .build();
+                    log.info("Label delivery payload: {}", payload);
 
                     log.info("[ISSUANCE] Firing delivery pipeline for credentialId={} productSpecId={}",
                             credentialId, productSpecificationId);

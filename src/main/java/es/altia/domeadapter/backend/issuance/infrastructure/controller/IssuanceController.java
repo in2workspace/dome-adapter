@@ -1,6 +1,6 @@
-package es.altia.domeadapter.issuance.infrastructure.controller;
+package es.altia.domeadapter.backend.issuance.infrastructure.controller;
 
-import es.altia.domeadapter.issuance.application.IssuanceLabelWorkflow;
+import es.altia.domeadapter.backend.issuance.application.IssuanceLabelWorkflow;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,12 +25,13 @@ public class IssuanceController {
     )
     public Mono<ResponseEntity<byte[]>> issueCredential(
             @RequestHeader(HttpHeaders.AUTHORIZATION) String bearerToken,
+            @RequestHeader("X-ID-Token") String idToken,
             @RequestBody PreSubmittedCredentialDataRequest request
     ) {
         String token = bearerToken.startsWith("Bearer ") ? bearerToken.substring(7) : bearerToken;
         log.info("[ISSUANCE] Received issuance request, schema={} format={}", request.schema(), request.format());
 
-        return issuanceLabelWorkflow.execute(request, token)
+        return issuanceLabelWorkflow.execute(request, token, idToken)
                 .thenReturn(ResponseEntity.ok(new byte[0]))
                 .onErrorResume(WebClientResponseException.class, ex -> {
                     log.warn("[ISSUANCE] External issuer returned error {}: {}", ex.getStatusCode(), ex.getResponseBodyAsString());

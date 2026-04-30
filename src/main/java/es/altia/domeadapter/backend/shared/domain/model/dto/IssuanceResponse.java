@@ -7,5 +7,6 @@ import lombok.Builder;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Builder
 public record IssuanceResponse(
-        @JsonProperty("credential") String credential
+        @JsonProperty("credential_offer_uri") String credentialOfferUri,
+        @JsonProperty("signed_credential") String signedCredential
 ) {}
