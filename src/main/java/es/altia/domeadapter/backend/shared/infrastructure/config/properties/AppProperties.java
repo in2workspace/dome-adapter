@@ -1,5 +1,6 @@
 package es.altia.domeadapter.backend.shared.infrastructure.config.properties;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import org.hibernate.validator.constraints.URL;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -12,13 +13,15 @@ public record AppProperties(
         @NotBlank @URL String verifierUrl,
         @NotBlank @URL String issuerUrl,
         @NotBlank String defaultLang,
-        @NotBlank String configSource
+        @NotBlank String configSource,
+        @NotBlank @Email String mailFrom
 ) {
     @ConstructorBinding
-    public AppProperties(String verifierUrl, String issuerUrl, String defaultLang, String configSource) {
+    public AppProperties(String verifierUrl, String issuerUrl, String defaultLang, String configSource, String mailFrom) {
         this.verifierUrl  = verifierUrl;
         this.issuerUrl    = issuerUrl;
         this.defaultLang  = defaultLang;
         this.configSource = configSource;
+        this.mailFrom = mailFrom;
     }
 }

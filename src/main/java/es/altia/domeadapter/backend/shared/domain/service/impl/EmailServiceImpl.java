@@ -3,11 +3,11 @@ package es.altia.domeadapter.backend.shared.domain.service.impl;
 import es.altia.domeadapter.backend.shared.domain.exception.EmailCommunicationException;
 import es.altia.domeadapter.backend.shared.domain.service.EmailService;
 import es.altia.domeadapter.backend.shared.domain.service.TranslationService;
+import es.altia.domeadapter.backend.shared.infrastructure.config.AppConfig;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.mail.MailProperties;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -27,8 +27,8 @@ public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender javaMailSender;
     private final TemplateEngine templateEngine;
-    private final MailProperties mailProperties;
     private final TranslationService translationService;
+    private final AppConfig appConfig;
 
     @Override
     public Mono<Void> sendResponseUriFailed(String to, String productSpecificationId, String credentialId, String providerEmail, String guideUrl) {
@@ -78,7 +78,7 @@ public class EmailServiceImpl implements EmailService {
         return Mono.fromCallable(() -> {
             MimeMessage mimeMessage = javaMailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, UTF_8);
-            helper.setFrom(mailProperties.getUsername());
+            helper.setFrom(appConfig.getMailFrom());
             helper.setTo(to);
             helper.setSubject(translationService.translate("email.missing-documents-certification") + productId);
             helper.setText(htmlContent, true);
@@ -97,7 +97,7 @@ public class EmailServiceImpl implements EmailService {
             try {
                 MimeMessage mimeMessage = javaMailSender.createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, UTF_8);
-                helper.setFrom(mailProperties.getUsername());
+                helper.setFrom(appConfig.getMailFrom());
                 helper.setTo(to);
                 helper.setSubject(translationService.translate(subjectKey));
 

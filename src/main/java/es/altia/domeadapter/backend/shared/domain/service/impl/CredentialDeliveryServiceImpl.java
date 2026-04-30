@@ -22,6 +22,10 @@ public class CredentialDeliveryServiceImpl implements CredentialDeliveryService 
 
     @Override
     public Mono<ResponseUriDeliveryResult> deliverLabelToResponseUri(String responseUri, String encodedVc, String credId, String bearerToken) {
+        //todo remove
+        log.info("deliver label {}", encodedVc);
+        log.info("to responseUri: {}" , responseUri);
+        log.info("with token: {}" , bearerToken);
         ResponseUriRequest responseUriRequest = ResponseUriRequest.builder()
                 .encodedVc(encodedVc)
                 .build();
