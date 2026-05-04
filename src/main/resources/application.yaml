@@ -88,9 +88,6 @@ cors:
   external-allowed-origins:
 
 retry:
-  knowledge-base:
-    # URL to the certification upload guide (included in failure/exhaustion emails)
-    upload-certification-guide-url:
   label-upload:
     # Email address of the certifier to notify on delivery failures
     certifier-email:

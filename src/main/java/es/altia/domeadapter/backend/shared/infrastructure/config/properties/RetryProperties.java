@@ -11,17 +11,11 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "retry")
 @Validated
 public record RetryProperties(
-        @NotNull KnowledgeBase knowledgeBase,
         @NotNull LabelUpload labelUpload
 ) {
     @ConstructorBinding
-    public RetryProperties(KnowledgeBase knowledgeBase, LabelUpload labelUpload) {
-        this.knowledgeBase = knowledgeBase;
+    public RetryProperties(LabelUpload labelUpload) {
         this.labelUpload   = labelUpload;
-    }
-
-    @Validated
-    public record KnowledgeBase(@NotBlank @URL String uploadCertificationGuideUrl) {
     }
 
     @Validated

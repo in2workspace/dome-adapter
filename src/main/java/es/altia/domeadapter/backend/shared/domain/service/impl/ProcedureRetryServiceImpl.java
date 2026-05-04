@@ -287,8 +287,7 @@ public class ProcedureRetryServiceImpl implements ProcedureRetryService {
                         email,
                         productSpecificationId,
                         credentialId,
-                        providerEmail,
-                        appConfig.getKnowledgeBaseUploadCertificationGuideUrl()
+                        providerEmail
                 )
                 .doOnSuccess(unused ->
                         log.info("[NOTIFICATION] Failure email sent to {} (recipient type: {}) for productSpecId: {}, credId: {}", email, recipientType, productSpecificationId, credentialId)
@@ -338,7 +337,7 @@ public class ProcedureRetryServiceImpl implements ProcedureRetryService {
             return Mono.empty();
         }
 
-        return emailService.sendResponseUriExhausted(email, productSpecificationId, credentialId, providerEmail, appConfig.getKnowledgeBaseUploadCertificationGuideUrl())
+        return emailService.sendResponseUriExhausted(email, productSpecificationId, credentialId, providerEmail)
                 .doOnSuccess(unused -> log.info("[NOTIFICATION] Exhaustion email sent to {} for credential: {}, credId: {}",
                         recipientType, credentialUuid, credentialId))
                 .onErrorResume(e -> {

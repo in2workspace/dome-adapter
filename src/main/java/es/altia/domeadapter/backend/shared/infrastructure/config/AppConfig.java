@@ -66,10 +66,6 @@ public class AppConfig {
         return adapterIdentityProperties.crypto().privateKey();
     }
 
-    public String getKnowledgeBaseUploadCertificationGuideUrl() {
-        return configAdapter.getConfiguration(retryProperties.knowledgeBase().uploadCertificationGuideUrl());
-    }
-
     public String getLabelUploadCertifierEmail() {
         return retryProperties.labelUpload().certifierEmail();
     }
