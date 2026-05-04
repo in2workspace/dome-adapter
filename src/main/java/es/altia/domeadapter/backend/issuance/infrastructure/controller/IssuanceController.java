@@ -1,6 +1,6 @@
 package es.altia.domeadapter.backend.issuance.infrastructure.controller;
 
-import es.altia.domeadapter.backend.issuance.application.IssuanceLabelWorkflow;
+import es.altia.domeadapter.backend.issuance.application.IssuanceWorkflow;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +17,7 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class IssuanceController {
 
-    private final IssuanceLabelWorkflow issuanceLabelWorkflow;
+    private final IssuanceWorkflow issuanceWorkflow;
 
     @PostMapping(
             value = "/api/v1/issuances",
@@ -31,7 +31,7 @@ public class IssuanceController {
         String token = bearerToken.startsWith("Bearer ") ? bearerToken.substring(7) : bearerToken;
         log.info("[ISSUANCE] Received issuance request, schema={} format={}", request.schema(), request.format());
 
-        return issuanceLabelWorkflow.execute(request, token, idToken)
+        return issuanceWorkflow.execute(request, token, idToken)
                 .thenReturn(ResponseEntity.ok(new byte[0]))
                 .onErrorResume(WebClientResponseException.class, ex -> {
                     log.warn("[ISSUANCE] External issuer returned error {}: {}", ex.getStatusCode(), ex.getResponseBodyAsString());

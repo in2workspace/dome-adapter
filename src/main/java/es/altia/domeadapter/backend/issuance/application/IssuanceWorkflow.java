@@ -1,6 +1,5 @@
 package es.altia.domeadapter.backend.issuance.application;
 
-
 import es.altia.domeadapter.backend.issuance.infrastructure.service.ExternalIssuanceService;
 import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
@@ -16,10 +15,12 @@ import reactor.core.scheduler.Schedulers;
 
 import java.util.UUID;
 
+import static es.altia.domeadapter.backend.issuance.domain.Constants.*;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class IssuanceLabelWorkflow {
+public class IssuanceWorkflow {
 
     private final ExternalIssuanceService externalIssuanceService;
     private final ProcedureRetryService procedureRetryService;
@@ -28,14 +29,19 @@ public class IssuanceLabelWorkflow {
     public Mono<Void> execute(PreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
         ExternalPreSubmittedCredentialDataRequest externalRequest =
                 ExternalPreSubmittedCredentialDataRequest.builder()
-                        .schema(request.schema())
+                        .schema(resolveExternalSchema(request.schema()))
                         .payload(request.payload())
                         .operationMode(request.operationMode())
                         .email(request.email())
-                        .delivery(request.delivery())
+                        .delivery(resolveDelivery(request))
                         .build();
+
         return externalIssuanceService.forward(externalRequest, bearerToken, idToken)
                 .flatMap(response -> {
+                    if (!isLabelCredentialSchema(request.schema())) {
+                        return Mono.empty();
+                    }
+
                     String signedCredential = response.signedCredential();
                     if (signedCredential == null || signedCredential.isBlank()) {
                         log.error("[ISSUANCE] External issuer returned empty credential");
@@ -44,7 +50,7 @@ public class IssuanceLabelWorkflow {
 
                     UUID credentialId = jwtUtils.extractCredentialId(signedCredential);
                     String productSpecificationId = jwtUtils.extractCredentialSubjectId(signedCredential);
-                    log.info("[ISSUANCE] Credential issued with id={} productSpecId={}", credentialId, productSpecificationId);
+                    log.info("[ISSUANCE] Label credential issued with id={} productSpecId={}", credentialId, productSpecificationId);
 
                     LabelCredentialDeliveryPayload payload = LabelCredentialDeliveryPayload.builder()
                             .responseUri(request.responseUri())
@@ -53,9 +59,10 @@ public class IssuanceLabelWorkflow {
                             .email(request.email())
                             .signedCredential(signedCredential)
                             .build();
-                    log.info("Label delivery payload: {}", payload);
 
-                    log.info("[ISSUANCE] Firing delivery pipeline for credentialId={} productSpecId={}",
+                    log.debug("Label delivery payload: {}", payload);
+
+                    log.info("[ISSUANCE] Firing delivery pipeline for label credential with credentialId={} productSpecId={}",
                             credentialId, productSpecificationId);
 
                     procedureRetryService
@@ -68,5 +75,29 @@ public class IssuanceLabelWorkflow {
 
                     return Mono.empty();
                 });
+    }
+
+    private String resolveExternalSchema(String schema) {
+        return switch (schema) {
+            case LABEL_CREDENTIAL_SCHEMA -> EXTERNAL_LABEL_CREDENTIAL_SCHEMA;
+            case LEAR_CREDENTIAL_EMPLOYEE_SCHEMA -> EXTERNAL_LEAR_CREDENTIAL_EMPLOYEE_SCHEMA;
+            default -> schema;
+        };
+    }
+
+    private String resolveDelivery(PreSubmittedCredentialDataRequest request) {
+        if (request.delivery() != null && !request.delivery().isBlank()) {
+            return request.delivery();
+        }
+
+        if (isLabelCredentialSchema(request.schema())) {
+            return DEFAULT_LABEL_DELIVERY;
+        }
+
+        return DEFAULT_DELIVERY;
+    }
+
+    private boolean isLabelCredentialSchema(String schema) {
+        return LABEL_CREDENTIAL_SCHEMA.equals(schema);
     }
 }
