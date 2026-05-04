@@ -29,7 +29,6 @@ public class JwtUtils {
     public UUID extractCredentialId(String jwt) {
         try {
             JsonNode claims = objectMapper.readTree(decodePayload(jwt));
-            log.info("[JWT] Extracting credential ID from claims: {}", claims);
 
             UUID idFromJti = parseUuidNode(claims.get("jti"));
             if (idFromJti != null) {
