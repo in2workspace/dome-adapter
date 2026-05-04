@@ -7,16 +7,23 @@ import es.altia.domeadapter.backend.shared.infrastructure.config.AppConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.Map;
+import java.util.stream.Collectors;
 
+import static es.altia.domeadapter.backend.shared.domain.util.Constants.CLIENT_ASSERTION_TYPE_VALUE;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -75,12 +82,21 @@ class M2MTokenServiceImplTest {
 
         m2mTokenService.getM2MToken().block();
 
-        verify(verifierService).performTokenRequest(argThat(body ->
-                body.contains("grant_type=client_credentials") &&
-                body.contains("client_id=" + CLIENT_ID) &&
-                body.contains("client_assertion_type=") &&
-                body.contains("client_assertion=signed-jwt-token")
-        ));
+        ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(verifierService).performTokenRequest(bodyCaptor.capture());
+
+        Map<String, String> formParams = Arrays.stream(bodyCaptor.getValue().split("&"))
+                .map(param -> param.split("=", 2))
+                .collect(Collectors.toMap(
+                        param -> URLDecoder.decode(param[0], StandardCharsets.UTF_8),
+                        param -> URLDecoder.decode(param[1], StandardCharsets.UTF_8)
+                ));
+
+        assertThat(formParams)
+                .containsEntry("grant_type", "client_credentials")
+                .containsEntry("client_id", CLIENT_ID)
+                .containsEntry("client_assertion_type", CLIENT_ASSERTION_TYPE_VALUE)
+                .containsEntry("client_assertion", "signed-jwt-token");
     }
 
     @Test
