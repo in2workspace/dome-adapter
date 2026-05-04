@@ -28,8 +28,10 @@ public class ExternalIssuanceServiceImpl implements ExternalIssuanceService {
 
     @Override
     public Mono<IssuanceResponse> forward(ExternalPreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
-        log.info("[ISSUANCE] Forwarding issuance request to external issuer");
-        logRequest(request);
+        log.debug("[ISSUANCE] External request schema={}, delivery={}, email={}",
+                request.schema(),
+                request.delivery(),
+                request.email());
 
         return issuerWebClient
                 .post()
