@@ -38,7 +38,7 @@ public class AppConfig {
     }
 
     public String getMailFrom() {
-        return configAdapter.getConfiguration(appProperties.mailFrom());
+        return configAdapter.getConfiguration(appProperties.mail().from());
     }
 
     /** URL of the external issuer — used to forward requests and to validate issuer-signed tokens. */
