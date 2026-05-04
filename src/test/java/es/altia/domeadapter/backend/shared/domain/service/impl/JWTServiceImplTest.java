@@ -17,7 +17,6 @@ import es.altia.domeadapter.backend.shared.domain.exception.JWTClaimMissingExcep
 import es.altia.domeadapter.backend.shared.domain.exception.JWTCreationException;
 import es.altia.domeadapter.backend.shared.domain.exception.JWTParsingException;
 import es.altia.domeadapter.backend.shared.domain.exception.ProofValidationException;
-import es.altia.domeadapter.backend.shared.infrastructure.crypto.CryptoComponent;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,31 +47,37 @@ class JWTServiceImplTest {
     private ObjectMapper objectMapper;
 
     @Mock
-    private CryptoComponent cryptoComponent;
+    private ECKey ecKey;
 
     @InjectMocks
     private JWTServiceImpl jwtService;
 
     @Test
-    void generateJWT_throws_JWTCreationException() throws JsonProcessingException {
+    void generateJWT_throws_JWTCreationException_whenSigningFails() throws JsonProcessingException {
         String payload = "{\"sub\":\"1234567890\",\"name\":\"John Doe\",\"iat\":1516239022}";
 
-        ECKey ecKey = mock(ECKey.class);
         when(ecKey.getKeyID()).thenReturn("testKeyID");
         when(ecKey.getCurve()).thenReturn(Curve.P_256);
-        when(cryptoComponent.getECKey()).thenReturn(ecKey);
 
         JsonNode mockJsonNode = mock(JsonNode.class);
         when(objectMapper.readTree(payload)).thenReturn(mockJsonNode);
 
-        Map<String, Object> claimsMap  = new HashMap<>();
-        claimsMap .put("sub", "1234567890");
-        claimsMap .put("name", "John Doe");
-        claimsMap .put("iat", 1516239022);
-        when(objectMapper.convertValue(any(JsonNode.class), any(TypeReference.class))).thenReturn(claimsMap);
+        Map<String, Object> claimsMap = new HashMap<>();
+        claimsMap.put("sub", "1234567890");
+        claimsMap.put("name", "John Doe");
+        claimsMap.put("iat", 1516239022);
 
-        assertThrows(JWTCreationException.class, () -> jwtService.generateJWT(payload));
+        when(objectMapper.convertValue(any(JsonNode.class), any(TypeReference.class)))
+                .thenReturn(claimsMap);
+
+        JWTCreationException exception = assertThrows(
+                JWTCreationException.class,
+                () -> jwtService.generateJWT(payload)
+        );
+
+        assertEquals("Error creating JWT", exception.getMessage());
     }
+
     @Test
     void validateJwtSignatureReactive_validSignature_shouldReturnTrue() throws Exception {
         String token = "eyJraWQiOiJkaWQ6a2V5OnpEbmFlZjZUaGprUE1pNXRiNkFoTEo4VHU4WnkzbWhHUUpiZlQ4YXhoSHNIN1NEZHoiLCJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJkaWQ6a2V5OnpEbmFlZjZUaGprUE1pNXRiNkFoTEo4VHU4WnkzbWhHUUpiZlQ4YXhoSHNIN1NEZHoiLCJzdWIiOiJkaWQ6a2V5OnpEbmFlZjZUaGprUE1pNXRiNkFoTEo4VHU4WnkzbWhHUUpiZlQ4YXhoSHNIN1NEZHoiLCJleHAiOjE3NjAwNzkxMzQsImlhdCI6MTcyNTk1MTEzNH0.5dHXb028Vt9PGai2FBluccJVxO3WXsjnreXGuSOSvUpKzzyCRKYGgWK2nMIBindKonxkOAgUkqaasSYby-gGpg";
