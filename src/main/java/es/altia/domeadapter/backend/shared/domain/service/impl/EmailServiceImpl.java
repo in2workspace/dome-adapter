@@ -78,7 +78,7 @@ public class EmailServiceImpl implements EmailService {
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, UTF_8);
             helper.setFrom(appConfig.getMailFrom());
             helper.setTo(to);
-            helper.setSubject(translationService.translate("email.missing-documents-certification") + productId);
+            helper.setSubject(translationService.translate("email.missing-documents-certification") + " - " + productId);
             helper.setText(htmlContent, true);
             javaMailSender.send(mimeMessage);
             return null;
