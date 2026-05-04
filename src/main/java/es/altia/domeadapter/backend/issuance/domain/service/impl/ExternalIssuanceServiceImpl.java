@@ -1,11 +1,10 @@
-package es.altia.domeadapter.backend.issuance.infrastructure.service.impl;
+package es.altia.domeadapter.backend.issuance.domain.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import es.altia.domeadapter.backend.issuance.infrastructure.service.ExternalIssuanceService;
+import es.altia.domeadapter.backend.issuance.domain.service.ExternalIssuanceService;
 import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.IssuanceResponse;
-import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;

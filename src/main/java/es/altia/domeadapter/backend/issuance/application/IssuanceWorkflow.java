@@ -1,6 +1,6 @@
 package es.altia.domeadapter.backend.issuance.application;
 
-import es.altia.domeadapter.backend.issuance.infrastructure.service.ExternalIssuanceService;
+import es.altia.domeadapter.backend.issuance.domain.service.ExternalIssuanceService;
 import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.retry.LabelCredentialDeliveryPayload;
@@ -98,6 +98,6 @@ public class IssuanceWorkflow {
     }
 
     private boolean isLabelCredentialSchema(String schema) {
-        return LABEL_CREDENTIAL_SCHEMA.equals(schema);
+        return LABEL_CREDENTIAL_SCHEMA.equals(schema) || EXTERNAL_LABEL_CREDENTIAL_SCHEMA.equals(schema);
     }
 }

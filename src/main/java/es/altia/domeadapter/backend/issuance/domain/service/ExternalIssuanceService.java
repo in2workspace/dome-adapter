@@ -1,4 +1,4 @@
-package es.altia.domeadapter.backend.issuance.infrastructure.service;
+package es.altia.domeadapter.backend.issuance.domain.service;
 
 import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.IssuanceResponse;
