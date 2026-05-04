@@ -25,7 +25,7 @@ cors:
   external-allowed-origins:
     - https://marketplace.example.com
 
-issuer-identity:
+adapter-identity:
   credential-subject-did-key: did:key:testkey
   jwt-credential: eyJhbGciOiJFUzI1NiJ9.e30.test
   crypto:

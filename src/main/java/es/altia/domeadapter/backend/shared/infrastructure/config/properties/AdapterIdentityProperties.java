@@ -6,15 +6,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.validation.annotation.Validated;
 
-@ConfigurationProperties(prefix = "issuer-identity")
+@ConfigurationProperties(prefix = "adapter-identity")
 @Validated
-public record IssuerIdentityProperties(
+public record AdapterIdentityProperties(
         @NotBlank String credentialSubjectDidKey,
         @NotBlank String jwtCredential,
         @NotNull Crypto crypto
 ) {
     @ConstructorBinding
-    public IssuerIdentityProperties(String credentialSubjectDidKey, String jwtCredential, Crypto crypto) {
+    public AdapterIdentityProperties(String credentialSubjectDidKey, String jwtCredential, Crypto crypto) {
         this.credentialSubjectDidKey = credentialSubjectDidKey;
         this.jwtCredential           = jwtCredential;
         this.crypto                  = crypto;

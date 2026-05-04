@@ -4,7 +4,7 @@ import es.altia.domeadapter.backend.shared.infrastructure.config.adapter.ConfigA
 import es.altia.domeadapter.backend.shared.infrastructure.config.adapter.factory.ConfigAdapterFactory;
 import es.altia.domeadapter.backend.shared.infrastructure.config.properties.AppProperties;
 import es.altia.domeadapter.backend.shared.infrastructure.config.properties.CorsProperties;
-import es.altia.domeadapter.backend.shared.infrastructure.config.properties.IssuerIdentityProperties;
+import es.altia.domeadapter.backend.shared.infrastructure.config.properties.AdapterIdentityProperties;
 import es.altia.domeadapter.backend.shared.infrastructure.config.properties.RetryProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -15,20 +15,20 @@ public class AppConfig {
 
     private final ConfigAdapter configAdapter;
     private final AppProperties appProperties;
-    private final IssuerIdentityProperties issuerIdentityProperties;
+    private final AdapterIdentityProperties adapterIdentityProperties;
     private final RetryProperties retryProperties;
     private final CorsProperties corsProperties;
 
     public AppConfig(
             ConfigAdapterFactory configAdapterFactory,
             AppProperties appProperties,
-            IssuerIdentityProperties issuerIdentityProperties,
+            AdapterIdentityProperties adapterIdentityProperties,
             RetryProperties retryProperties,
             CorsProperties corsProperties
     ) {
         this.configAdapter              = configAdapterFactory.getAdapter();
         this.appProperties              = appProperties;
-        this.issuerIdentityProperties   = issuerIdentityProperties;
+        this.adapterIdentityProperties   = adapterIdentityProperties;
         this.retryProperties            = retryProperties;
         this.corsProperties             = corsProperties;
     }
@@ -55,15 +55,15 @@ public class AppConfig {
     }
 
     public String getCredentialSubjectDidKey() {
-        return issuerIdentityProperties.credentialSubjectDidKey();
+        return adapterIdentityProperties.credentialSubjectDidKey();
     }
 
     public String getJwtCredential() {
-        return issuerIdentityProperties.jwtCredential();
+        return adapterIdentityProperties.jwtCredential();
     }
 
     public String getCryptoPrivateKey() {
-        return issuerIdentityProperties.crypto().privateKey();
+        return adapterIdentityProperties.crypto().privateKey();
     }
 
     public String getKnowledgeBaseUploadCertificationGuideUrl() {

@@ -74,7 +74,7 @@ app:
   mail:
     from:
 
-issuer-identity:
+adapter-identity:
   # DID:key of this service's credential subject (for M2M token)
   credential-subject-did-key:
   # Base64-encoded JWT machine credential (for M2M token)
