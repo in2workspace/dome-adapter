@@ -1,29 +1,75 @@
 spring:
+  application:
+    name: dome-adapter
+  main:
+    web-application-type: reactive
   r2dbc:
     url: r2dbc:h2:mem:///testdb?options=DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     username: sa
     password: ""
   flyway:
     enabled: false
+    url:
+    locations: classpath:db/migration
+    default-schema: dome_adapter
   mail:
     host: localhost
     port: 1025
     username: test
     password: test
-    properties.mail.smtp:
-      auth: true
-      starttls.enable: false
-      ssl.trust: "*"
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: false
+          ssl:
+            enable: false
+            trust: "*"
+  messages:
+    basename: messages/messages
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+  level:
+    es.altia.dome_adapter: INFO
+
+server:
+  port: 0
+
+management:
+  endpoints:
+    enabled-by-default: false
+    web:
+      exposure:
+        include: health, prometheus
+      base-path: /
+      path-mapping:
+        health: health
+        prometheus: prometheus
+  endpoint:
+    health:
+      enabled: true
+      show-details: always
+    prometheus:
+      enabled: true
+
+springdoc:
+  api-docs:
+    path: /springdoc/api-docs
+  swagger-ui:
+    path: /springdoc/swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method
 
 app:
   verifier-url: https://verifier.example.com
   issuer-url: https://issuer.example.com
   default-lang: en
   config-source: yaml
-
-cors:
-  external-allowed-origins:
-    - https://marketplace.example.com
+  mail:
+    from: example@email.com
 
 adapter-identity:
   credential-subject-did-key: did:key:testkey
@@ -31,9 +77,11 @@ adapter-identity:
   crypto:
     private-key: "0000000000000000000000000000000000000000000000000000000000000001"
 
+cors:
+  external-allowed-origins:
+    - https://marketplace.example.com
+
 retry:
-  knowledge-base:
-    upload-certification-guide-url: https://docs.example.com/guide
   label-upload:
     certifier-email: certifier@example.com
     marketplace-email: marketplace@example.com
