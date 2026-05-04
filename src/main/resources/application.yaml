@@ -72,7 +72,7 @@ app:
   # Configuration source: yaml (OPTIONAL, default: yaml)
   config-source: yaml
   mail:
-    from:
+    from: ${APP_MAIL_FROM:no-reply@example.com}
 
 adapter-identity:
   # DID:key of this service's credential subject (for M2M token)
