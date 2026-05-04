@@ -77,7 +77,7 @@ class CryptoComponentTest {
         System.arraycopy(pubKeyBytes, 0, multicodecAndRawKey, codeVarInt.getLength(), pubKeyBytes.length);
         String multiBase58Btc = Base58.encode(multicodecAndRawKey);
         String didKey = "did:key:z" + multiBase58Btc;
-        System.out.println("DID Key: " + didKey);
+        
         return new ECKey.Builder(Curve.P_256, publicKey)
                 .privateKey(privateKey)
                 .keyID(didKey)
