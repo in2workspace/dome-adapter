@@ -40,13 +40,17 @@ public class M2MTokenServiceImpl implements M2MTokenService {
         Map<String, String> parameters = new LinkedHashMap<>();
         parameters.put(OAuth2ParameterNames.GRANT_TYPE, CLIENT_CREDENTIALS_GRANT_TYPE_VALUE);
         parameters.put(OAuth2ParameterNames.CLIENT_ID, appConfig.getCredentialSubjectDidKey());
-        parameters.put(OAuth2ParameterNames.CLIENT_ASSERTION_TYPE, URLEncoder.encode(CLIENT_ASSERTION_TYPE_VALUE, StandardCharsets.UTF_8));
+        parameters.put(OAuth2ParameterNames.CLIENT_ASSERTION_TYPE, CLIENT_ASSERTION_TYPE_VALUE);
         parameters.put(OAuth2ParameterNames.CLIENT_ASSERTION, createClientAssertion());
 
         return parameters.entrySet()
                 .stream()
-                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .map(entry -> formEncode(entry.getKey()) + "=" + formEncode(entry.getValue()))
                 .collect(Collectors.joining("&"));
+    }
+
+    private String formEncode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     private String createClientAssertion() {
