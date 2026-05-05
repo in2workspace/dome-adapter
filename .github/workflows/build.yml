@@ -53,13 +53,13 @@ jobs:
           path: build/reports/jacoco/test/html/
 
   snapshot:
-    name: Snapshot Docker Image
+    name: Snapshot Docker Image to ECR
     needs: build
     runs-on: ubuntu-latest
     environment: stg
     env:
       ENVIRONMENT: stg
-      APP_NAME: issuer-core
+      APP_NAME: adapter-core
       REGION_CODE: ew1
     steps:
       - name: Checkout Repository
