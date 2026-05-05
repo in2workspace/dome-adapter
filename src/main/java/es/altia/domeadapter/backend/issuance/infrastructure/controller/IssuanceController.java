@@ -1,0 +1,46 @@
+package es.altia.domeadapter.backend.issuance.infrastructure.controller;
+
+import es.altia.domeadapter.backend.issuance.application.IssuanceWorkflow;
+import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.core.publisher.Mono;
+
+@Slf4j
+@RestController
+@RequestMapping
+@RequiredArgsConstructor
+public class IssuanceController {
+
+    private final IssuanceWorkflow issuanceWorkflow;
+
+    @PostMapping(
+            value = "/api/v1/issuances",
+            consumes = MediaType.APPLICATION_JSON_VALUE
+    )
+    public Mono<ResponseEntity<byte[]>> issueCredential(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String bearerToken,
+            @RequestHeader("X-ID-Token") String idToken,
+            @RequestBody PreSubmittedCredentialDataRequest request
+    ) {
+        String token = bearerToken.startsWith("Bearer ") ? bearerToken.substring(7) : bearerToken;
+        log.info("[ISSUANCE] Received issuance request, schema={} format={}", request.schema(), request.format());
+
+        return issuanceWorkflow.execute(request, token, idToken)
+                .thenReturn(ResponseEntity.ok(new byte[0]))
+                .onErrorResume(WebClientResponseException.class, ex -> {
+                    log.warn("[ISSUANCE] External issuer returned error {}: {}", ex.getStatusCode(), ex.getResponseBodyAsString());
+                    // Propagate the issuer's status code and body verbatim so the caller
+                    // receives the same error the issuer produced, not a generic 500.
+                    return Mono.just(ResponseEntity
+                            .status(ex.getStatusCode())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body(ex.getResponseBodyAsByteArray()));
+                });
+    }
+}

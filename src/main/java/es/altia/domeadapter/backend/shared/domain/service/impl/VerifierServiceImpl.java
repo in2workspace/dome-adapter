@@ -1,6 +1,5 @@
 package es.altia.domeadapter.backend.shared.domain.service.impl;
 
-
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSVerifier;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
@@ -65,32 +64,45 @@ public class VerifierServiceImpl implements VerifierService {
         return getWellKnownInfo()
                 .flatMap(metadata -> fetchJWKSet(metadata.jwksUri()))
                 .flatMap(jwkSet -> {
+                    SignedJWT signedJWT;
+                    JWTClaimsSet claims;
+
                     try {
-                        SignedJWT signedJWT = SignedJWT.parse(accessToken);
-                        JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
+                        signedJWT = SignedJWT.parse(accessToken);
+                        claims = signedJWT.getJWTClaimsSet();
+                    } catch (ParseException e) {
+                        log.error("Error parsing JWT.", e);
+                        return Mono.error(new JWTParsingException("Error parsing JWT"));
+                    }
 
-                        if (!appConfig.getVerifierUrl().equals(claims.getIssuer())) {
-                            log.info(appConfig.getVerifierUrl());
-                            log.info(claims.getIssuer());
-                            return Mono.error(new JWTVerificationException("Invalid issuer"));
-                        }
+                    // Iss is validated upstream by CustomAuthenticationManager
+                    // via UrlResolver.expectedVerifierBaseUrl(exchange). We only
+                    // check expiration (when requested) and signature here.
 
-                        if (checkExpiration && (claims.getExpirationTime() == null || new Date().after(claims.getExpirationTime()))) {
-                            return Mono.error(new JWTVerificationException("Token has expired"));
-                        }
+                    if (checkExpiration && (claims.getExpirationTime() == null
+                            || new Date().after(claims.getExpirationTime()))) {
+                        log.error("JWT validation failed: token has expired. expirationTime={}",
+                                claims.getExpirationTime());
 
+                        return Mono.error(new JWTVerificationException("Token has expired"));
+                    }
+
+                    try {
                         JWSVerifier verifier = getJWSVerifier(signedJWT, jwkSet);
+
                         if (!signedJWT.verify(verifier)) {
+                            log.error("JWT validation failed: invalid token signature.");
                             return Mono.error(new JWTVerificationException("Invalid token signature"));
                         }
 
-                        return Mono.empty();
-                    } catch (ParseException | JOSEException e) {
-                        log.error("Error parsing or verifying JWT", e);
-                        return Mono.error(new JWTParsingException("Error parsing or verifying JWT"));
+                        return Mono.empty(); // Valid token
+                    } catch (JOSEException e) {
+                        log.error("Error verifying JWT signature.", e);
+                        return Mono.error(new JWTVerificationException("Error verifying JWT signature"));
                     }
                 });
     }
+
 
     private JWSVerifier getJWSVerifier(SignedJWT signedJWT, JWKSet jwkSet) throws JOSEException {
         String keyId = signedJWT.getHeader().getKeyID();
@@ -146,6 +158,7 @@ public class VerifierServiceImpl implements VerifierService {
 
     @Override
     public Mono<VerifierOauth2AccessToken> performTokenRequest(String body) {
+        log.info("Performing token request...");
         return getWellKnownInfo()
                 .flatMap(metadata -> oauth2VerifierWebClient.post()
                         .uri(metadata.tokenEndpoint())
@@ -156,4 +169,3 @@ public class VerifierServiceImpl implements VerifierService {
                         .onErrorMap(e -> new TokenFetchException("Error fetching the token", e)));
     }
 }
-

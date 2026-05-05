@@ -8,6 +8,7 @@ public class Constants {
 
     public static final String DID_KEY                          = "did:key:";
     public static final String CONTENT_TYPE                     = "Content-Type";
+    public static final String CONTENT_TYPE_APPLICATION_JSON     = "application/json";
     public static final String CONTENT_TYPE_URL_ENCODED_FORM    = "application/x-www-form-urlencoded";
     public static final String AUTHENTICATION_FAILED            = "Authentication failed";
 

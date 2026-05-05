@@ -1,0 +1,12 @@
+package es.altia.domeadapter.backend.shared.domain.model.dto;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Builder;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+@Builder
+public record IssuanceResponse(
+        @JsonProperty("credential_offer_uri") String credentialOfferUri,
+        @JsonProperty("signed_credential") String signedCredential
+) {}

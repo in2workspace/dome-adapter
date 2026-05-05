@@ -206,9 +206,11 @@ public class CustomAuthenticationManager implements ReactiveAuthenticationManage
         }
         JsonNode typeNode = vcNode.get("type");
         if (typeNode == null || !typeNode.isArray() || StreamSupport.stream(typeNode.spliterator(), false)
-                .noneMatch(node -> "LEARCredentialMachine".equals(node.asText()))) {
-            log.error("Credential type required: LEARCredentialMachine.");
-            throw new BadCredentialsException("Credential type required: LEARCredentialMachine.");
+                .map(JsonNode::asText)
+                .noneMatch(type -> "LEARCredentialMachine".equals(type)
+                        || type.contains("learcredential.machine.w3c"))) {
+            log.error("Credential type required: LEARCredentialMachine or learcredential.machine.w3c.");
+            throw new BadCredentialsException("Credential type required: LEARCredentialMachine or learcredential.machine.w3c.");
         }
     }
 }

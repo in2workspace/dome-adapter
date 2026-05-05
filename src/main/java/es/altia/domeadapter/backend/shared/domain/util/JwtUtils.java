@@ -30,54 +30,90 @@ public class JwtUtils {
         try {
             JsonNode claims = objectMapper.readTree(decodePayload(jwt));
 
-            JsonNode jtiNode = claims.get("jti");
-            if (jtiNode != null && !jtiNode.isNull()) {
-                String jti = jtiNode.asText();
-                if (jti.startsWith("urn:uuid:")) {
-                    return UUID.fromString(jti.substring("urn:uuid:".length()));
-                }
-                try { return UUID.fromString(jti); } catch (IllegalArgumentException ignored) { }
+            UUID idFromJti = parseUuidNode(claims.get("jti"));
+            if (idFromJti != null) {
+                return idFromJti;
+            }
+
+            UUID idFromRoot = parseUuidNode(claims.get("id"));
+            if (idFromRoot != null) {
+                return idFromRoot;
             }
 
             JsonNode vcNode = claims.get("vc");
             if (vcNode != null && !vcNode.isNull()) {
-                JsonNode vcIdNode = vcNode.get("id");
-                if (vcIdNode != null && !vcIdNode.isNull()) {
-                    String vcId = vcIdNode.asText();
-                    if (vcId.startsWith("urn:uuid:")) {
-                        return UUID.fromString(vcId.substring("urn:uuid:".length()));
-                    }
-                    try { return UUID.fromString(vcId); } catch (IllegalArgumentException ignored) { }
-                    return UUID.nameUUIDFromBytes(vcId.getBytes(StandardCharsets.UTF_8));
+                UUID idFromVc = parseUuidNode(vcNode.get("id"));
+                if (idFromVc != null) {
+                    return idFromVc;
                 }
             }
 
-            log.warn("[JWT] Could not extract credential ID, generating synthetic UUID");
-            return UUID.nameUUIDFromBytes(jwt.getBytes(StandardCharsets.UTF_8));
+            throw new IllegalArgumentException("Could not extract credential ID from JWT claims");
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("[JWT] Error extracting credential ID: {}", e.getMessage(), e);
-            return UUID.nameUUIDFromBytes(jwt.getBytes(StandardCharsets.UTF_8));
+            throw new IllegalArgumentException("Error extracting credential ID from JWT", e);
+        }
+    }
+
+    private UUID parseUuidNode(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+
+        String value = node.asText();
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        if (value.startsWith("urn:uuid:")) {
+            value = value.substring("urn:uuid:".length());
+        }
+
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ignored) {
+            return null;
         }
     }
 
     public String extractCredentialSubjectId(String jwt) {
         try {
             JsonNode claims = objectMapper.readTree(decodePayload(jwt));
+            log.info("[JWT] Extracting credentialSubject.id from claims: {}", claims);
+
+            String rootCredentialSubjectId = extractCredentialSubjectIdFromNode(claims);
+            if (!rootCredentialSubjectId.isBlank()) {
+                return rootCredentialSubjectId;
+            }
+
             JsonNode vcNode = claims.get("vc");
             if (vcNode != null && !vcNode.isNull()) {
-                JsonNode csNode = vcNode.get("credentialSubject");
-                if (csNode != null && !csNode.isNull()) {
-                    JsonNode idNode = csNode.get("id");
-                    if (idNode != null && !idNode.isNull()) {
-                        return idNode.asText();
-                    }
+                String vcCredentialSubjectId = extractCredentialSubjectIdFromNode(vcNode);
+                if (!vcCredentialSubjectId.isBlank()) {
+                    return vcCredentialSubjectId;
                 }
             }
+
             log.warn("[JWT] Could not extract credentialSubject.id");
             return "";
         } catch (Exception e) {
             log.error("[JWT] Error extracting credentialSubject.id: {}", e.getMessage(), e);
             return "";
         }
+    }
+
+    private String extractCredentialSubjectIdFromNode(JsonNode node) {
+        JsonNode csNode = node.get("credentialSubject");
+        if (csNode == null || csNode.isNull()) {
+            return "";
+        }
+
+        JsonNode idNode = csNode.get("id");
+        if (idNode == null || idNode.isNull()) {
+            return "";
+        }
+
+        return idNode.asText();
     }
 }
