@@ -4,13 +4,13 @@ spring:
   main:
     web-application-type: reactive
   r2dbc:
-    url:
-    username:
-    password:
+    url: ${SPRING_R2DBC_URL:}
+    username: ${SPRING_R2DBC_USERNAME:}
+    password: ${SPRING_R2DBC_PASSWORD:}
   flyway:
-    url:
+    url: ${SPRING_FLYWAY_URL:}
     locations: classpath:db/migration
-    default-schema: dome_adapter
+    default-schema: ${SPRING_FLYWAY_DEFAULT_SCHEMA:dome_adapter}
   mail:
     host: ${SPRING_MAIL_HOST:localhost}
     port: ${SPRING_MAIL_PORT:587}
@@ -32,10 +32,11 @@ logging:
   pattern:
     level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
   level:
-    es.altia.dome_adapter: INFO
+    es.altia.domeadapter: ${LOGGING_LEVEL_ES_ALTIA_DOMEADAPTER:INFO}
+    org.springframework.security: ${LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY:INFO}
 
 server:
-  port: 8081
+  port: ${SERVER_PORT:8081}
 
 management:
   endpoints:
@@ -63,33 +64,23 @@ springdoc:
     operations-sorter: method
 
 app:
-  # URL of the external verifier (for token validation and M2M token acquisition)
-  verifier-url:
-  # URL of the external issuer (for forwarding issuance requests and for token validation)
-  issuer-url:
-  # Default language for email notifications (OPTIONAL, default: en)
-  default-lang: en
-  # Configuration source: yaml (OPTIONAL, default: yaml)
-  config-source: yaml
+  verifier-url: ${APP_VERIFIER_URL:}
+  issuer-url: ${APP_ISSUER_URL:}
+  default-lang: ${APP_DEFAULT_LANG:en}
+  config-source: ${APP_CONFIG_SOURCE:yaml}
   mail:
     from: ${APP_MAIL_FROM:no-reply@example.com}
 
 adapter-identity:
-  # DID:key of this service's credential subject (for M2M token)
-  credential-subject-did-key:
-  # Base64-encoded JWT machine credential (for M2M token)
-  jwt-credential:
+  credential-subject-did-key: ${ADAPTER_IDENTITY_CREDENTIAL_SUBJECT_DID_KEY:}
+  jwt-credential: ${ADAPTER_IDENTITY_JWT_CREDENTIAL:}
   crypto:
-    # Hex-encoded secp256r1 private key (for JWT signing)
-    private-key:
+    private-key: ${ADAPTER_IDENTITY_CRYPTO_PRIVATE_KEY:}
 
 cors:
-  # Origins allowed to call POST /api/v1/issuances (e.g. https://marketplace.dome-marketplace.eu)
-  external-allowed-origins:
+  external-allowed-origins: ${CORS_EXTERNAL_ALLOWED_ORIGINS:}
 
 retry:
   label-upload:
-    # Email address of the certifier to notify on delivery failures
-    certifier-email:
-    # Email address of the marketplace to notify on delivery failures
-    marketplace-email:
+    certifier-email: ${RETRY_LABEL_UPLOAD_CERTIFIER_EMAIL:}
+    marketplace-email: ${RETRY_LABEL_UPLOAD_MARKETPLACE_EMAIL:}
