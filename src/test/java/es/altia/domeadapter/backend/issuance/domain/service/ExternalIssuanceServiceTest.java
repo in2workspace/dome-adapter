@@ -2,7 +2,7 @@ package es.altia.domeadapter.backend.issuance.domain.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import es.altia.domeadapter.backend.issuance.domain.service.impl.ExternalIssuanceServiceImpl;
+import es.altia.domeadapter.backend.issuance.domain.service.impl.IssuerCoreClient;
 import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.IssuanceResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,12 +34,12 @@ class ExternalIssuanceServiceTest {
     @Mock
     private ExchangeFunction exchangeFunction;
 
-    private ExternalIssuanceServiceImpl service;
+    private IssuerCoreClient service;
 
     @BeforeEach
     void setUp() {
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
-        service = new ExternalIssuanceServiceImpl(webClient, new ObjectMapper());
+        service = new IssuerCoreClient(webClient, new ObjectMapper());
     }
 
     @Test

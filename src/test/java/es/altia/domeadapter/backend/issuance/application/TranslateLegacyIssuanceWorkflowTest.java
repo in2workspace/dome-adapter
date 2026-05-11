@@ -1,7 +1,7 @@
 package es.altia.domeadapter.backend.issuance.application;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import es.altia.domeadapter.backend.issuance.domain.service.ExternalIssuanceService;
+import es.altia.domeadapter.backend.issuance.domain.service.IssuerCoreClientPort;
 import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.IssuanceResponse;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
@@ -29,20 +29,20 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class IssuanceWorkflowTest {
+class TranslateLegacyIssuanceWorkflowTest {
 
     @Mock
-    private ExternalIssuanceService externalIssuanceService;
+    private IssuerCoreClientPort externalIssuanceService;
     @Mock
     private ProcedureRetryService procedureRetryService;
     @Mock
     private JwtUtils jwtUtils;
 
-    private IssuanceWorkflow workflow;
+    private TranslateLegacyIssuanceWorkflow workflow;
 
     @BeforeEach
     void setUp() {
-        workflow = new IssuanceWorkflow(externalIssuanceService, procedureRetryService, jwtUtils);
+        workflow = new TranslateLegacyIssuanceWorkflow(externalIssuanceService, procedureRetryService, jwtUtils);
     }
 
     @Test

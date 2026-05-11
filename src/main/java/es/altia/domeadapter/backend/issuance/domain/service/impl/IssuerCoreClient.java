@@ -2,7 +2,7 @@ package es.altia.domeadapter.backend.issuance.domain.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import es.altia.domeadapter.backend.issuance.domain.service.ExternalIssuanceService;
+import es.altia.domeadapter.backend.issuance.domain.service.IssuerCoreClientPort;
 import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.IssuanceResponse;
 import lombok.RequiredArgsConstructor;
@@ -21,14 +21,14 @@ import static es.altia.domeadapter.backend.shared.domain.util.EndpointsConstants
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ExternalIssuanceServiceImpl implements ExternalIssuanceService {
+public class IssuerCoreClient implements IssuerCoreClientPort {
 
     private final WebClient issuerWebClient;
     private final ObjectMapper objectMapper;
 
     @Override
     public Mono<IssuanceResponse> forward(ExternalPreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
-        log.debug("[ISSUANCE] External request schema={}, delivery={}, email={}",
+        log.debug("[ISSUANCE] Sending issuance request. schema={}, delivery={}, email={}",
                 request.schema(),
                 request.delivery(),
                 request.email());
@@ -57,17 +57,5 @@ public class ExternalIssuanceServiceImpl implements ExternalIssuanceService {
                                     )
                             ));
                 });
-    }
-
-    private void logRequest(ExternalPreSubmittedCredentialDataRequest request) {
-        if (!log.isDebugEnabled()) {
-            return;
-        }
-
-        try {
-            log.debug("[ISSUANCE] External issuer request body: {}", objectMapper.writeValueAsString(request));
-        } catch (JsonProcessingException e) {
-            log.debug("[ISSUANCE] Could not serialize external issuer request body for logging", e);
-        }
     }
 }
