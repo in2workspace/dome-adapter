@@ -3,6 +3,7 @@ package es.altia.domeadapter.backend.issuance.application;
 import com.fasterxml.jackson.databind.JsonNode;
 import es.altia.domeadapter.backend.issuance.domain.service.IssuerCoreClientPort;
 import es.altia.domeadapter.backend.shared.domain.exception.FormatUnsupportedException;
+import es.altia.domeadapter.backend.shared.domain.exception.MissingEmailOwnerException;
 import es.altia.domeadapter.backend.shared.domain.exception.MissingIdTokenHeaderException;
 import es.altia.domeadapter.backend.shared.domain.exception.UnsupportedCredentialSchemaException;
 import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
@@ -43,10 +44,16 @@ public class TranslateLegacyIssuanceWorkflow {
         if (!isSupportedSchema(request.schema())) {
             return Mono.error(new UnsupportedCredentialSchemaException(
                     "Unsupported credential schema: '" + request.schema() + "'. Supported schemas are: "
-                    + LABEL_CREDENTIAL_SCHEMA + ", " + LEAR_CREDENTIAL_EMPLOYEE_SCHEMA + ", " + LEAR_CREDENTIAL_MACHINE_SCHEMA));
+                            + LABEL_CREDENTIAL_SCHEMA + ", " + LEAR_CREDENTIAL_EMPLOYEE_SCHEMA + ", " + LEAR_CREDENTIAL_MACHINE_SCHEMA));
         }
         if (isLabelCredentialSchema(request.schema()) && (idToken == null || idToken.isBlank())) {
             return Mono.error(new MissingIdTokenHeaderException("Missing required ID Token header for Label credential issuance."));
+        }
+        validatePayload(request);
+
+        String delivery = resolveDelivery(request); //todo comprovar UI
+        if (delivery.contains("email") && (request.email() == null || request.email().isBlank())) {
+            return Mono.error(new MissingEmailOwnerException("Email is required when delivery mode includes 'email'."));
         }
 
         ExternalPreSubmittedCredentialDataRequest externalRequest =
@@ -55,7 +62,7 @@ public class TranslateLegacyIssuanceWorkflow {
                         .payload(request.payload()) //todo validate?
                         .operationMode(request.operationMode())
                         .email(request.email())
-                        .delivery(resolveDelivery(request))
+                        .delivery(delivery)
                         .build();
 
         return issuerCoreClient.forward(externalRequest, bearerToken, idToken)
@@ -97,6 +104,25 @@ public class TranslateLegacyIssuanceWorkflow {
 
                     return Mono.empty();
                 });
+    }
+
+    private void validatePayload(PreSubmittedCredentialDataRequest request) {
+        if (LABEL_CREDENTIAL_SCHEMA.equals(request.schema())) {
+            validateLabelCredentialPayload(request.payload());
+        } else if (LEAR_CREDENTIAL_EMPLOYEE_SCHEMA.equals(request.schema())) {
+            validateLearCredentialEmployeePayload(request.payload());
+        } else if (LEAR_CREDENTIAL_MACHINE_SCHEMA.equals(request.schema())) {
+            validateLearCredentialMachinePayload(request.payload());
+        }
+    }
+
+    private void validateLabelCredentialPayload(JsonNode payload) {
+    }
+
+    private void validateLearCredentialEmployeePayload(JsonNode payload) {
+    }
+
+    private void validateLearCredentialMachinePayload(JsonNode payload) {
     }
 
     private boolean isSupportedSchema(String schema) {

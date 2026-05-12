@@ -3,6 +3,7 @@ package es.altia.domeadapter.backend.shared.infrastructure.controller.error;
 import es.altia.domeadapter.backend.shared.domain.exception.FormatUnsupportedException;
 import es.altia.domeadapter.backend.shared.domain.exception.JWTParsingException;
 import es.altia.domeadapter.backend.shared.domain.exception.JWTVerificationException;
+import es.altia.domeadapter.backend.shared.domain.exception.MissingEmailOwnerException;
 import es.altia.domeadapter.backend.shared.domain.exception.MissingIdTokenHeaderException;
 import es.altia.domeadapter.backend.shared.domain.exception.ProofValidationException;
 import es.altia.domeadapter.backend.shared.domain.exception.UnsupportedCredentialSchemaException;
@@ -160,6 +161,21 @@ public class GlobalExceptionHandler {
                 ex, request,
                 GlobalErrorTypes.MISSING_HEADER.getCode(),
                 "Missing ID Token header",
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage()
+        );
+    }
+
+    @ExceptionHandler(MissingEmailOwnerException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Mono<GlobalErrorMessage> handleMissingEmailOwnerException(
+            MissingEmailOwnerException ex,
+            ServerHttpRequest request
+    ) {
+        return errors.handleWith(
+                ex, request,
+                GlobalErrorTypes.EMAIL_COMMUNICATION.getCode(),
+                "Missing email",
                 HttpStatus.BAD_REQUEST,
                 ex.getMessage()
         );
