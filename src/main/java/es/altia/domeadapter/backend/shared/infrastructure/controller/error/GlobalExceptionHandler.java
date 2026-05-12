@@ -3,7 +3,9 @@ package es.altia.domeadapter.backend.shared.infrastructure.controller.error;
 import es.altia.domeadapter.backend.shared.domain.exception.FormatUnsupportedException;
 import es.altia.domeadapter.backend.shared.domain.exception.JWTParsingException;
 import es.altia.domeadapter.backend.shared.domain.exception.JWTVerificationException;
+import es.altia.domeadapter.backend.shared.domain.exception.MissingIdTokenHeaderException;
 import es.altia.domeadapter.backend.shared.domain.exception.ProofValidationException;
+import es.altia.domeadapter.backend.shared.domain.exception.UnsupportedCredentialSchemaException;
 import es.altia.domeadapter.backend.shared.domain.model.dto.GlobalErrorMessage;
 import es.altia.domeadapter.backend.shared.domain.util.GlobalErrorTypes;
 import lombok.RequiredArgsConstructor;
@@ -133,6 +135,35 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(UnsupportedCredentialSchemaException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Mono<GlobalErrorMessage> handleUnsupportedCredentialSchemaException(
+            UnsupportedCredentialSchemaException ex,
+            ServerHttpRequest request
+    ) {
+        return errors.handleWith(
+                ex, request,
+                GlobalErrorTypes.UNSUPPORTED_CREDENTIAL_TYPE.getCode(),
+                "Unsupported credential schema",
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage()
+        );
+    }
+
+    @ExceptionHandler(MissingIdTokenHeaderException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Mono<GlobalErrorMessage> handleMissingIdTokenHeaderException(
+            MissingIdTokenHeaderException ex,
+            ServerHttpRequest request
+    ) {
+        return errors.handleWith(
+                ex, request,
+                GlobalErrorTypes.MISSING_HEADER.getCode(),
+                "Missing ID Token header",
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage()
+        );
+    }
 
 }
 

@@ -25,7 +25,7 @@ public class LegacyIssuanceController {
     )
     public Mono<ResponseEntity<byte[]>> issueCredential(
             @RequestHeader(HttpHeaders.AUTHORIZATION) String bearerToken,
-            @RequestHeader("X-ID-Token") String idToken,
+            @RequestHeader(value = "X-ID-Token", required = false) String idToken,
             @RequestBody PreSubmittedCredentialDataRequest request
     ) {
         String token = bearerToken.startsWith("Bearer ") ? bearerToken.substring(7) : bearerToken;

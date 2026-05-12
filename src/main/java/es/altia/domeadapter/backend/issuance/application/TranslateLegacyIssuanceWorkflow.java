@@ -1,7 +1,10 @@
 package es.altia.domeadapter.backend.issuance.application;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import es.altia.domeadapter.backend.issuance.domain.service.IssuerCoreClientPort;
 import es.altia.domeadapter.backend.shared.domain.exception.FormatUnsupportedException;
+import es.altia.domeadapter.backend.shared.domain.exception.MissingIdTokenHeaderException;
+import es.altia.domeadapter.backend.shared.domain.exception.UnsupportedCredentialSchemaException;
 import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.retry.LabelCredentialDeliveryPayload;
@@ -31,21 +34,28 @@ public class TranslateLegacyIssuanceWorkflow {
     private final JwtUtils jwtUtils;
 
     public Mono<Void> execute(PreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
-        // Check if the format is not "json_vc_jwt"
         if (!JWT_VC_JSON.equals(request.format())) {
             return Mono.error(new FormatUnsupportedException("Format: " + request.format() + " is not supported"));
         }
-        // Check if operation_mode is different to sync
         if (!request.operationMode().equals(SYNC)) {
             return Mono.error(new OperationNotSupportedException("operation_mode: " + request.operationMode() + " with schema: " + request.schema()));
         }
+        if (!isSupportedSchema(request.schema())) {
+            return Mono.error(new UnsupportedCredentialSchemaException(
+                    "Unsupported credential schema: '" + request.schema() + "'. Supported schemas are: "
+                    + LABEL_CREDENTIAL_SCHEMA + ", " + LEAR_CREDENTIAL_EMPLOYEE_SCHEMA + ", " + LEAR_CREDENTIAL_MACHINE_SCHEMA));
+        }
+        if (isLabelCredentialSchema(request.schema()) && (idToken == null || idToken.isBlank())) {
+            return Mono.error(new MissingIdTokenHeaderException("Missing required ID Token header for Label credential issuance."));
+        }
+
         ExternalPreSubmittedCredentialDataRequest externalRequest =
                 ExternalPreSubmittedCredentialDataRequest.builder()
                         .schema(resolveExternalSchema(request.schema()))
                         .payload(request.payload()) //todo validate?
                         .operationMode(request.operationMode())
                         .email(request.email())
-                        .delivery(resolveDelivery(request)) //todo
+                        .delivery(resolveDelivery(request))
                         .build();
 
         return issuerCoreClient.forward(externalRequest, bearerToken, idToken)
@@ -89,12 +99,18 @@ public class TranslateLegacyIssuanceWorkflow {
                 });
     }
 
+    private boolean isSupportedSchema(String schema) {
+        return LABEL_CREDENTIAL_SCHEMA.equals(schema)
+                || LEAR_CREDENTIAL_EMPLOYEE_SCHEMA.equals(schema)
+                || LEAR_CREDENTIAL_MACHINE_SCHEMA.equals(schema);
+    }
+
     private String resolveExternalSchema(String schema) {
         return switch (schema) {
             case LABEL_CREDENTIAL_SCHEMA -> EXTERNAL_LABEL_CREDENTIAL_SCHEMA;
             case LEAR_CREDENTIAL_EMPLOYEE_SCHEMA -> EXTERNAL_LEAR_CREDENTIAL_EMPLOYEE_SCHEMA;
             case LEAR_CREDENTIAL_MACHINE_SCHEMA -> EXTERNAL_LEAR_CREDENTIAL_MACHINE_SCHEMA;
-            default -> schema; //todo error?
+            default -> throw new UnsupportedCredentialSchemaException("Unsupported credential schema: " + schema);
         };
     }
 
