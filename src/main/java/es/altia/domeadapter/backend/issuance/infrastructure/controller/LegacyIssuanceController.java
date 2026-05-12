@@ -23,7 +23,7 @@ public class LegacyIssuanceController {
     private final AppConfig appConfig;
 
     @PostMapping(
-            value = "/api/v1/issuances",
+            value = "/vci/v1/issuances",
             consumes = MediaType.APPLICATION_JSON_VALUE
     )
     public Mono<ResponseEntity<byte[]>> issueCredential(
