@@ -63,7 +63,7 @@ public class TranslateLegacyIssuanceWorkflow {
             return Mono.error(e);
         }
 
-        String delivery = resolveDelivery(request); //todo comprovar UI
+        String delivery = resolveDelivery(request);
         if (delivery.contains("email") && (request.email() == null || request.email().isBlank())) {
             return Mono.error(new MissingEmailOwnerException("Email is required when delivery mode includes 'email'."));
         }
@@ -71,7 +71,7 @@ public class TranslateLegacyIssuanceWorkflow {
         ExternalPreSubmittedCredentialDataRequest externalRequest =
                 ExternalPreSubmittedCredentialDataRequest.builder()
                         .schema(resolveExternalSchema(request.schema()))
-                        .payload(request.payload()) //todo validate?
+                        .payload(request.payload())
                         .operationMode(request.operationMode())
                         .email(request.email())
                         .delivery(delivery)
@@ -183,7 +183,7 @@ public class TranslateLegacyIssuanceWorkflow {
             return DEFAULT_LABEL_DELIVERY;
         }
 
-        return DEFAULT_DELIVERY; //todo comprovar si "ui" funciona amb l'adapter
+        return DEFAULT_DELIVERY;
     }
 
     private boolean isLabelCredentialSchema(String schema) {
