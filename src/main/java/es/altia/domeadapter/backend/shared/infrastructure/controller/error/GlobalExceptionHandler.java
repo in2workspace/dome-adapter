@@ -1,6 +1,7 @@
 package es.altia.domeadapter.backend.shared.infrastructure.controller.error;
 
 import es.altia.domeadapter.backend.shared.domain.exception.FormatUnsupportedException;
+import es.altia.domeadapter.backend.shared.domain.exception.InvalidCredentialFormatException;
 import es.altia.domeadapter.backend.shared.domain.exception.JWTParsingException;
 import es.altia.domeadapter.backend.shared.domain.exception.JWTVerificationException;
 import es.altia.domeadapter.backend.shared.domain.exception.MissingEmailOwnerException;
@@ -133,6 +134,21 @@ public class GlobalExceptionHandler {
                 "Format not supported",
                 HttpStatus.BAD_REQUEST,
                 "Format is not supported"
+        );
+    }
+
+    @ExceptionHandler(InvalidCredentialFormatException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Mono<GlobalErrorMessage> handleInvalidCredentialFormatException(
+            InvalidCredentialFormatException ex,
+            ServerHttpRequest request
+    ) {
+        return errors.handleWith(
+                ex, request,
+                GlobalErrorTypes.INVALID_CREDENTIAL_FORMAT.getCode(),
+                "Invalid credential format",
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage()
         );
     }
 

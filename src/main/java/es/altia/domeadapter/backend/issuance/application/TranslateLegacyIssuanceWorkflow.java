@@ -1,17 +1,23 @@
 package es.altia.domeadapter.backend.issuance.application;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import es.altia.domeadapter.backend.issuance.domain.service.IssuerCoreClientPort;
 import es.altia.domeadapter.backend.shared.domain.exception.FormatUnsupportedException;
+import es.altia.domeadapter.backend.shared.domain.exception.InvalidCredentialFormatException;
 import es.altia.domeadapter.backend.shared.domain.exception.MissingEmailOwnerException;
 import es.altia.domeadapter.backend.shared.domain.exception.MissingIdTokenHeaderException;
 import es.altia.domeadapter.backend.shared.domain.exception.UnsupportedCredentialSchemaException;
 import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
+import es.altia.domeadapter.backend.shared.domain.model.dto.credential.LabelCredential;
+import es.altia.domeadapter.backend.shared.domain.model.dto.credential.lear.employee.LEARCredentialEmployee;
+import es.altia.domeadapter.backend.shared.domain.model.dto.credential.lear.machine.LEARCredentialMachine;
 import es.altia.domeadapter.backend.shared.domain.model.dto.retry.LabelCredentialDeliveryPayload;
 import es.altia.domeadapter.backend.shared.domain.model.enums.ActionType;
 import es.altia.domeadapter.backend.shared.domain.service.ProcedureRetryService;
 import es.altia.domeadapter.backend.shared.domain.util.JwtUtils;
+import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +39,8 @@ public class TranslateLegacyIssuanceWorkflow {
     private final IssuerCoreClientPort issuerCoreClient;
     private final ProcedureRetryService procedureRetryService;
     private final JwtUtils jwtUtils;
+    private final ObjectMapper objectMapper;
+    private final Validator validator;
 
     public Mono<Void> execute(PreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
         if (!JWT_VC_JSON.equals(request.format())) {
@@ -49,7 +57,11 @@ public class TranslateLegacyIssuanceWorkflow {
         if (isLabelCredentialSchema(request.schema()) && (idToken == null || idToken.isBlank())) {
             return Mono.error(new MissingIdTokenHeaderException("Missing required ID Token header for Label credential issuance."));
         }
-        validatePayload(request);
+        try {
+            validatePayload(request);
+        } catch (InvalidCredentialFormatException e) {
+            return Mono.error(e);
+        }
 
         String delivery = resolveDelivery(request); //todo comprovar UI
         if (delivery.contains("email") && (request.email() == null || request.email().isBlank())) {
@@ -117,12 +129,34 @@ public class TranslateLegacyIssuanceWorkflow {
     }
 
     private void validateLabelCredentialPayload(JsonNode payload) {
+        try {
+            LabelCredential credential = objectMapper.convertValue(payload, LabelCredential.class);
+            var violations = validator.validate(credential);
+            if (!violations.isEmpty()) {
+                throw new InvalidCredentialFormatException("Invalid LabelCredential payload");
+            }
+        } catch (IllegalArgumentException e) {
+            log.error("Error mapping LabelCredential payload", e);
+            throw new InvalidCredentialFormatException("Invalid LabelCredential payload");
+        }
     }
 
     private void validateLearCredentialEmployeePayload(JsonNode payload) {
+        try {
+            objectMapper.convertValue(payload, LEARCredentialEmployee.CredentialSubject.Mandate.class);
+        } catch (IllegalArgumentException e) {
+            log.error("Error mapping LEARCredentialEmployee payload", e);
+            throw new InvalidCredentialFormatException("Invalid LEARCredentialEmployee payload");
+        }
     }
 
     private void validateLearCredentialMachinePayload(JsonNode payload) {
+        try {
+            objectMapper.convertValue(payload, LEARCredentialMachine.CredentialSubject.Mandate.class);
+        } catch (IllegalArgumentException e) {
+            log.error("Error mapping LEARCredentialMachine payload", e);
+            throw new InvalidCredentialFormatException("Invalid LEARCredentialMachine payload");
+        }
     }
 
     private boolean isSupportedSchema(String schema) {
