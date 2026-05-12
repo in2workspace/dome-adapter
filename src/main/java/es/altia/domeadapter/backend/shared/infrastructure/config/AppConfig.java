@@ -74,6 +74,10 @@ public class AppConfig {
         return retryProperties.labelUpload().marketplaceEmail();
     }
 
+    public boolean isIssuerDomeAdapterEnabled() {
+        return appProperties.issuerDomeAdapterEnabled();
+    }
+
     public List<String> getExternalCorsAllowedOrigins() {
         return corsProperties.externalAllowedOrigins();
     }

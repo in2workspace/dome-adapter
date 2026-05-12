@@ -2,9 +2,11 @@ package es.altia.domeadapter.backend.issuance.infrastructure.controller;
 
 import es.altia.domeadapter.backend.issuance.application.TranslateLegacyIssuanceWorkflow;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
+import es.altia.domeadapter.backend.shared.infrastructure.config.AppConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +20,7 @@ import reactor.core.publisher.Mono;
 public class LegacyIssuanceController {
 
     private final TranslateLegacyIssuanceWorkflow translateLegacyIssuanceWorkflow;
+    private final AppConfig appConfig;
 
     @PostMapping(
             value = "/api/v1/issuances",
@@ -28,6 +31,12 @@ public class LegacyIssuanceController {
             @RequestHeader(value = "X-ID-Token", required = false) String idToken,
             @RequestBody PreSubmittedCredentialDataRequest request
     ) {
+        if (!appConfig.isIssuerDomeAdapterEnabled()) {
+            return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("{\"message\":\"Endpoint not found\"}".getBytes()));
+        }
+
         String token = bearerToken.startsWith("Bearer ") ? bearerToken.substring(7) : bearerToken;
         log.info("[ISSUANCE] Received issuance request, schema={} format={}", request.schema(), request.format());
 
