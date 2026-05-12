@@ -180,12 +180,23 @@ public class CustomAuthenticationManager implements ReactiveAuthenticationManage
     }
 
     private void validateVcClaim(Map<String, Object> claims) {
-        Object vcObj = claims.get("vc");
         log.debug("validateVcClaim");
-        if (vcObj == null) {
-            log.error("The 'vc' claim is required but not present.");
-            throw new BadCredentialsException("The 'vc' claim is required but not present.");
+        Object vcObj = claims.get("vc");
+        if (vcObj != null) {
+            validateVcObject(vcObj);
+            return;
         }
+        // Fallback: tokens from the vc-verifier embed credential_type instead of a vc object
+        Object credentialType = claims.get("credential_type");
+        if (credentialType instanceof String type && isAllowedCredentialType(type)) {
+            log.debug("validateVcClaim - accepted via credential_type: {}", type);
+            return;
+        }
+        log.error("Neither 'vc' claim nor an accepted 'credential_type' is present.");
+        throw new BadCredentialsException("Credential type required: LEARCredentialMachine or learcredential.machine.w3c.");
+    }
+
+    private void validateVcObject(Object vcObj) {
         String vcJson;
         if (vcObj instanceof String vc) {
             vcJson = vc;
@@ -207,10 +218,13 @@ public class CustomAuthenticationManager implements ReactiveAuthenticationManage
         JsonNode typeNode = vcNode.get("type");
         if (typeNode == null || !typeNode.isArray() || StreamSupport.stream(typeNode.spliterator(), false)
                 .map(JsonNode::asText)
-                .noneMatch(type -> "LEARCredentialMachine".equals(type)
-                        || type.contains("learcredential.machine.w3c"))) {
+                .noneMatch(this::isAllowedCredentialType)) {
             log.error("Credential type required: LEARCredentialMachine or learcredential.machine.w3c.");
             throw new BadCredentialsException("Credential type required: LEARCredentialMachine or learcredential.machine.w3c.");
         }
+    }
+
+    private boolean isAllowedCredentialType(String type) {
+        return "LEARCredentialMachine".equals(type) || type.contains("learcredential.machine.w3c");
     }
 }
