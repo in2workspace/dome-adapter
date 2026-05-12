@@ -1,5 +1,6 @@
 package es.altia.domeadapter.backend.shared.infrastructure.controller.error;
 
+import es.altia.domeadapter.backend.shared.domain.exception.FormatUnsupportedException;
 import es.altia.domeadapter.backend.shared.domain.exception.JWTParsingException;
 import es.altia.domeadapter.backend.shared.domain.exception.JWTVerificationException;
 import es.altia.domeadapter.backend.shared.domain.exception.ProofValidationException;
@@ -114,6 +115,21 @@ public class GlobalExceptionHandler {
                 "JWT parsing error",
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "The provided JWT is invalid or can't be parsed."
+        );
+    }
+
+    @ExceptionHandler(FormatUnsupportedException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Mono<GlobalErrorMessage> handleFormatUnsupportedException(
+            FormatUnsupportedException ex,
+            ServerHttpRequest request
+    ) {
+        return errors.handleWith(
+                ex, request,
+                GlobalErrorTypes.FORMAT_IS_NOT_SUPPORTED.getCode(),
+                "Format not supported",
+                HttpStatus.BAD_REQUEST,
+                "Format is not supported"
         );
     }
 

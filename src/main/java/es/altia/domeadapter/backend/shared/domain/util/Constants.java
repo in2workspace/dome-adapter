@@ -6,6 +6,8 @@ public class Constants {
         throw new IllegalStateException("Utility class");
     }
 
+    public static final String JWT_VC_JSON = "jwt_vc_json";
+    public static final String SYNC = "S";
     public static final String DID_KEY                          = "did:key:";
     public static final String CONTENT_TYPE                     = "Content-Type";
     public static final String CONTENT_TYPE_APPLICATION_JSON     = "application/json";
