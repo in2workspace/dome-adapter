@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
+import static es.altia.domeadapter.backend.shared.domain.util.EndpointsConstants.TRANSLATE_LEGACY_PATH;
+
 @Slf4j
 @RestController
 @RequestMapping
@@ -23,7 +25,7 @@ public class LegacyIssuanceController {
     private final AppConfig appConfig;
 
     @PostMapping(
-            value = "/vci/v1/issuances",
+            value = TRANSLATE_LEGACY_PATH,
             consumes = MediaType.APPLICATION_JSON_VALUE
     )
     public Mono<ResponseEntity<byte[]>> issueCredential(
