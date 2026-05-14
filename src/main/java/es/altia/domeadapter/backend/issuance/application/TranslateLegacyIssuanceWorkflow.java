@@ -15,6 +15,7 @@ import es.altia.domeadapter.backend.shared.domain.model.dto.credential.lear.empl
 import es.altia.domeadapter.backend.shared.domain.model.dto.credential.lear.machine.LEARCredentialMachine;
 import es.altia.domeadapter.backend.shared.domain.model.dto.retry.LabelCredentialDeliveryPayload;
 import es.altia.domeadapter.backend.shared.domain.model.enums.ActionType;
+import es.altia.domeadapter.backend.shared.domain.service.M2MTokenService;
 import es.altia.domeadapter.backend.shared.domain.service.ProcedureRetryService;
 import es.altia.domeadapter.backend.shared.domain.util.JwtUtils;
 import jakarta.validation.Validator;
@@ -41,22 +42,37 @@ public class TranslateLegacyIssuanceWorkflow {
     private final JwtUtils jwtUtils;
     private final ObjectMapper objectMapper;
     private final Validator validator;
+    // todo remove
+    private final M2MTokenService m2MTokenService;
 
     public Mono<Void> execute(PreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
+        //todo remove
+        return m2MTokenService.getM2MToken()
+                .doOnNext(token -> log.info("[ISSUANCE] Temporary M2M token for testing: {}", token))
+                .then(executeIssuance(request, bearerToken, idToken));
+
+      
+    }
+
+    private Mono<Void> executeIssuance(PreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
         if (!JWT_VC_JSON.equals(request.format())) {
             return Mono.error(new FormatUnsupportedException("Format: " + request.format() + " is not supported"));
         }
+
         if (!request.operationMode().equals(SYNC)) {
             return Mono.error(new OperationNotSupportedException("operation_mode: " + request.operationMode() + " with schema: " + request.schema()));
         }
+
         if (!isSupportedSchema(request.schema())) {
             return Mono.error(new UnsupportedCredentialSchemaException(
                     "Unsupported credential schema: '" + request.schema() + "'. Supported schemas are: "
                             + LABEL_CREDENTIAL_SCHEMA + ", " + LEAR_CREDENTIAL_EMPLOYEE_SCHEMA + ", " + LEAR_CREDENTIAL_MACHINE_SCHEMA));
         }
+
         if (isLabelCredentialSchema(request.schema()) && (idToken == null || idToken.isBlank())) {
             return Mono.error(new MissingIdTokenHeaderException("Missing required ID Token header for Label credential issuance."));
         }
+
         try {
             validatePayload(request);
         } catch (InvalidCredentialFormatException e) {
@@ -64,8 +80,11 @@ public class TranslateLegacyIssuanceWorkflow {
         }
 
         String delivery = resolveDelivery(request);
-        if (delivery.contains("email") && (request.email() == null || request.email().isBlank())) {
-            return Mono.error(new MissingEmailOwnerException("Email is required when delivery mode includes 'email'."));
+        String email;
+        try {
+            email = resolveEmail(request);
+        } catch (MissingEmailOwnerException e) {
+            return Mono.error(e);
         }
 
         ExternalPreSubmittedCredentialDataRequest externalRequest =
@@ -73,7 +92,7 @@ public class TranslateLegacyIssuanceWorkflow {
                         .schema(resolveExternalSchema(request.schema()))
                         .payload(request.payload())
                         .operationMode(request.operationMode())
-                        .email(request.email())
+                        .email(email)
                         .delivery(delivery)
                         .build();
 
@@ -97,7 +116,7 @@ public class TranslateLegacyIssuanceWorkflow {
                             .responseUri(request.responseUri())
                             .credentialId(credentialId.toString())
                             .productSpecificationId(productSpecificationId)
-                            .email(request.email())
+                            .email(email)
                             .signedCredential(signedCredential)
                             .build();
 
@@ -129,6 +148,7 @@ public class TranslateLegacyIssuanceWorkflow {
     }
 
     private void validateLabelCredentialPayload(JsonNode payload) {
+        log.debug("Validating LabelCredential payload: {}", payload);
         try {
             LabelCredential credential = objectMapper.convertValue(payload, LabelCredential.class);
             var violations = validator.validate(credential);
@@ -188,5 +208,29 @@ public class TranslateLegacyIssuanceWorkflow {
 
     private boolean isLabelCredentialSchema(String schema) {
         return LABEL_CREDENTIAL_SCHEMA.equals(schema) || EXTERNAL_LABEL_CREDENTIAL_SCHEMA.equals(schema);
+    }
+
+    private String resolveEmail(PreSubmittedCredentialDataRequest request) {
+        if (LABEL_CREDENTIAL_SCHEMA.equals(request.schema())) {
+            if (request.email() == null || request.email().isBlank()) {
+                throw new MissingEmailOwnerException("Email is required for Label credential issuance.");
+            }
+            return request.email();
+        }
+
+        if (LEAR_CREDENTIAL_MACHINE_SCHEMA.equals(request.schema())) {
+            if (request.email() != null && !request.email().isBlank()) {
+                return request.email();
+            }
+            JsonNode emailNode = request.payload().path("mandator").path("email");
+            return emailNode.isMissingNode() || emailNode.isNull() ? null : emailNode.asText();
+        }
+
+        if (LEAR_CREDENTIAL_EMPLOYEE_SCHEMA.equals(request.schema())) {
+            JsonNode emailNode = request.payload().path("mandatee").path("email");
+            return emailNode.isMissingNode() || emailNode.isNull() ? null : emailNode.asText();
+        }
+
+        return request.email();
     }
 }
