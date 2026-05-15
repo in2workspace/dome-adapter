@@ -15,5 +15,5 @@ public final class Constants {
     public static final String ISSUER_LEAR_CREDENTIAL_MACHINE_SCHEMA = "learcredential.machine.w3c.3";
 
     public static final String DEFAULT_LABEL_DELIVERY = "email,direct";
-    public static final String DEFAULT_DELIVERY = "email,ui";
+    public static final String DEFAULT_DELIVERY = "email";
 }
