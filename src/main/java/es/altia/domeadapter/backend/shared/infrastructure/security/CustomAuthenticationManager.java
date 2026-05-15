@@ -3,6 +3,7 @@ package es.altia.domeadapter.backend.shared.infrastructure.security;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jwt.SignedJWT;
+import es.altia.domeadapter.backend.shared.domain.exception.JWTVerificationException;
 import es.altia.domeadapter.backend.shared.domain.service.JWTService;
 import es.altia.domeadapter.backend.shared.domain.service.VerifierService;
 import es.altia.domeadapter.backend.shared.infrastructure.config.AppConfig;
@@ -53,9 +54,11 @@ public class CustomAuthenticationManager implements ReactiveAuthenticationManage
                                 Collections.emptyList(),
                                 principalName
                         )))
-                .onErrorMap(e -> (e instanceof AuthenticationException)
-                        ? e
-                        : new AuthenticationServiceException(e.getMessage(), e));
+                .onErrorMap(e -> switch (e) {
+                    case AuthenticationException ae -> ae;
+                    case JWTVerificationException jve -> new BadCredentialsException(jve.getMessage(), jve);
+                    default -> new AuthenticationServiceException(e.getMessage(), e);
+                });
     }
 
     private Mono<String> getPrincipalName(Jwt accessJwt, @Nullable String idToken) {
