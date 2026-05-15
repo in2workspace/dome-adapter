@@ -48,9 +48,6 @@ class TranslateLegacyIssuanceWorkflowTest {
     @Mock
     private Validator validator;
 
-    @Mock
-    private M2MTokenService m2MTokenService; //todo remove
-
     private TranslateLegacyIssuanceWorkflow workflow;
 
     @BeforeEach
@@ -60,11 +57,9 @@ class TranslateLegacyIssuanceWorkflowTest {
                 procedureRetryService,
                 jwtUtils,
                 objectMapper,
-                validator,
-                m2MTokenService
+                validator
         );
 
-        when(m2MTokenService.getM2MToken()).thenReturn(Mono.empty());
     }
 
     @Test

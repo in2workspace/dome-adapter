@@ -42,16 +42,8 @@ public class TranslateLegacyIssuanceWorkflow {
     private final JwtUtils jwtUtils;
     private final ObjectMapper objectMapper;
     private final Validator validator;
-    // todo remove
-    private final M2MTokenService m2MTokenService;
 
     public Mono<IssuanceResponse> execute(PreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
-        return m2MTokenService.getM2MToken() // todo remove
-                .doOnNext(token -> log.info("[ISSUANCE] Temporary M2M token for testing: {}", token))
-                .then(executeIssuance(request, bearerToken, idToken));
-    }
-
-    private Mono<IssuanceResponse> executeIssuance(PreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
         return validateIssuanceRequest(request, idToken)
                 .then(Mono.defer(() -> executeValidatedIssuance(request, bearerToken, idToken)));
     }
@@ -103,6 +95,17 @@ public class TranslateLegacyIssuanceWorkflow {
 
         return resolveEmailOrError(request)
                 .flatMap(email -> {
+                    String translatedSchema = translateSchema(request.schema());
+
+                    log.debug(
+                            "[ISSUANCE] Forwarding legacy issuance request schema={} translatedSchema={} delivery={} emailPresent={} idTokenPresent={}",
+                            request.schema(),
+                            translatedSchema,
+                            delivery,
+                            hasText(email),
+                            hasText(idToken)
+                    );
+
                     IssuerPreSubmittedCredentialDataRequest issuerRequest =
                             IssuerPreSubmittedCredentialDataRequest.builder()
                                     .schema(translateSchema(request.schema()))
@@ -111,8 +114,6 @@ public class TranslateLegacyIssuanceWorkflow {
                                     .email(email)
                                     .delivery(delivery)
                                     .build();
-
-                    log.info("issuer request: {}", issuerRequest);
 
                     return issuerCoreClient.forward(issuerRequest, bearerToken, idToken)
                             .flatMap(response -> {
@@ -137,7 +138,6 @@ public class TranslateLegacyIssuanceWorkflow {
     }
 
     private void validateLabelCredentialPayload(JsonNode payload) {
-        log.debug("Validating LabelCredential payload: {}", payload);
         try {
             LabelCredential credential = objectMapper.convertValue(payload, LabelCredential.class);
             var violations = validator.validate(credential);
@@ -145,7 +145,7 @@ public class TranslateLegacyIssuanceWorkflow {
                 throw new InvalidCredentialFormatException("Invalid LabelCredential payload");
             }
         } catch (IllegalArgumentException e) {
-            log.error("Error mapping LabelCredential payload", e);
+            log.error("[ISSUANCE] Error mapping LabelCredential payload", e);
             throw new InvalidCredentialFormatException("Invalid LabelCredential payload");
         }
     }
@@ -156,7 +156,7 @@ public class TranslateLegacyIssuanceWorkflow {
         try {
             objectMapper.convertValue(payload, LEARCredentialEmployee.CredentialSubject.Mandate.class);
         } catch (IllegalArgumentException e) {
-            log.error("Error mapping LEARCredentialEmployee payload", e);
+            log.error("[ISSUANCE] Error mapping LEARCredentialEmployee payload", e);
             throw new InvalidCredentialFormatException("Invalid LEARCredentialEmployee payload");
         }
     }
@@ -167,7 +167,7 @@ public class TranslateLegacyIssuanceWorkflow {
         try {
             objectMapper.convertValue(payload, LEARCredentialMachine.CredentialSubject.Mandate.class);
         } catch (IllegalArgumentException e) {
-            log.error("Error mapping LEARCredentialMachine payload", e);
+            log.error("[ISSUANCE] Error mapping LEARCredentialMachine payload", e);
             throw new InvalidCredentialFormatException("Invalid LEARCredentialMachine payload");
         }
     }
@@ -303,8 +303,6 @@ public class TranslateLegacyIssuanceWorkflow {
                 .signedCredential(signedCredential)
                 .build();
 
-        log.debug("Label delivery payload: {}", payload);
-
         log.info("[ISSUANCE] Firing delivery pipeline for label credential with credentialId={} productSpecId={}",
                 credentialId, productSpecificationId);
 
@@ -313,8 +311,11 @@ public class TranslateLegacyIssuanceWorkflow {
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                         null,
-                        e -> log.error("[ISSUANCE] Error during delivery pipeline for credentialId={}: {}",
-                                credentialId, e.getMessage())
+                        e -> log.error(
+                                "[ISSUANCE] Error during delivery pipeline for credentialId={}",
+                                credentialId,
+                                e
+                        )
                 );
 
         return Mono.empty();
