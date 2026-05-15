@@ -50,7 +50,6 @@ public class LegacyIssuanceController {
                         .body(objectMapper.writeValueAsBytes(response))))
                 .onErrorResume(WebClientResponseException.class, ex -> {
                     log.warn("[ISSUANCE] Issuer returned error {}: {}", ex.getStatusCode(), ex.getResponseBodyAsString());
-                    //todo
                     // Propagate the issuer's status code and body verbatim so the caller
                     // receives the same error the issuer produced, not a generic 500.
                     return Mono.just(ResponseEntity
