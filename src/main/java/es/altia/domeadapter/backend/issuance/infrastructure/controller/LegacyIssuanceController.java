@@ -1,5 +1,6 @@
 package es.altia.domeadapter.backend.issuance.infrastructure.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import es.altia.domeadapter.backend.issuance.application.TranslateLegacyIssuanceWorkflow;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.infrastructure.config.AppConfig;
@@ -23,6 +24,7 @@ public class LegacyIssuanceController {
 
     private final TranslateLegacyIssuanceWorkflow translateLegacyIssuanceWorkflow;
     private final AppConfig appConfig;
+    private final ObjectMapper objectMapper;
 
     @PostMapping(
             value = TRANSLATE_LEGACY_PATH,
@@ -43,7 +45,9 @@ public class LegacyIssuanceController {
         log.info("[ISSUANCE] Received issuance request, schema={} format={}", request.schema(), request.format());
 
         return translateLegacyIssuanceWorkflow.execute(request, token, idToken)
-                .thenReturn(ResponseEntity.ok(new byte[0]))
+                .flatMap(response -> Mono.fromCallable(() -> ResponseEntity.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(objectMapper.writeValueAsBytes(response))))
                 .onErrorResume(WebClientResponseException.class, ex -> {
                     log.warn("[ISSUANCE] Issuer returned error {}: {}", ex.getStatusCode(), ex.getResponseBodyAsString());
                     //todo
