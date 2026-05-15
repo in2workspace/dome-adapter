@@ -38,7 +38,7 @@ public class SecurityConfig {
         log.debug("customAuthenticationWebFilter - inside");
 
         authenticationWebFilter.setRequiresAuthenticationMatcher(
-                ServerWebExchangeMatchers.pathMatchers(ISSUANCES_PATH)
+                ServerWebExchangeMatchers.pathMatchers(TRANSLATE_LEGACY_PATH)
         );
 
         authenticationWebFilter.setServerAuthenticationConverter(new DualTokenServerAuthenticationConverter());
