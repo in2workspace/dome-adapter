@@ -23,4 +23,7 @@ public class Constants {
     public static final String CREDENTIAL_ID             = "credentialId";
     public static final String MAIL_ERROR_COMMUNICATION_EXCEPTION_MESSAGE = "Error during communication with the mail server";
     public static final String UTF_8                     = "UTF-8";
+
+    public static final String MANDATOR_FIELD = "mandator";
+    public static final String ORGANIZATION_IDENTIFIER_FIELD = "organizationIdentifier";
 }
