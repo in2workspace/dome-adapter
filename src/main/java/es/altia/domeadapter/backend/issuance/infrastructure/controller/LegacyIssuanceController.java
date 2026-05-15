@@ -45,7 +45,8 @@ public class LegacyIssuanceController {
         return translateLegacyIssuanceWorkflow.execute(request, token, idToken)
                 .thenReturn(ResponseEntity.ok(new byte[0]))
                 .onErrorResume(WebClientResponseException.class, ex -> {
-                    log.warn("[ISSUANCE] External issuer returned error {}: {}", ex.getStatusCode(), ex.getResponseBodyAsString());
+                    log.warn("[ISSUANCE] Issuer returned error {}: {}", ex.getStatusCode(), ex.getResponseBodyAsString());
+                    //todo
                     // Propagate the issuer's status code and body verbatim so the caller
                     // receives the same error the issuer produced, not a generic 500.
                     return Mono.just(ResponseEntity

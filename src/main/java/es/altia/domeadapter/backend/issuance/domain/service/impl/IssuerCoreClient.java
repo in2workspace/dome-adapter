@@ -1,9 +1,8 @@
 package es.altia.domeadapter.backend.issuance.domain.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import es.altia.domeadapter.backend.issuance.domain.service.IssuerCoreClientPort;
-import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
+import es.altia.domeadapter.backend.shared.domain.model.dto.IssuerPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.IssuanceResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +26,7 @@ public class IssuerCoreClient implements IssuerCoreClientPort {
     private final ObjectMapper objectMapper;
 
     @Override
-    public Mono<IssuanceResponse> forward(ExternalPreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
+    public Mono<IssuanceResponse> forward(IssuerPreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
         log.debug("[ISSUANCE] Sending issuance request. schema={}, delivery={}, email={}",
                 request.schema(),
                 request.delivery(),

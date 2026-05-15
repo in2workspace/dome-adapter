@@ -123,9 +123,9 @@ public class CustomAuthenticationManager implements ReactiveAuthenticationManage
             log.debug("Token from Verifier - {}", appConfig.getVerifierUrl());
             return handleVerifierToken(token);
         }
-        if (issuer.equals(appConfig.getExternalIssuerUrl())) {
-            log.debug("Token from External Issuer - {}", appConfig.getExternalIssuerUrl());
-            return handleExternalIssuerToken(token);
+        if (issuer.equals(appConfig.getIssuerUrl())) {
+            log.debug("Token from Issuer - {}", appConfig.getIssuerUrl());
+            return handleIssuerToken(token);
         }
         log.debug("Token from unknown issuer");
         return Mono.error(new BadCredentialsException("Unknown token issuer: " + issuer));
@@ -136,7 +136,7 @@ public class CustomAuthenticationManager implements ReactiveAuthenticationManage
                 .then(parseAndValidateJwt(token, Boolean.TRUE));
     }
 
-    private Mono<Jwt> handleExternalIssuerToken(String token) {
+    private Mono<Jwt> handleIssuerToken(String token) {
         return Mono.fromCallable(() -> SignedJWT.parse(token))
                 .flatMap(jwtService::validateJwtSignatureReactive)
                 .flatMap(isValid -> {

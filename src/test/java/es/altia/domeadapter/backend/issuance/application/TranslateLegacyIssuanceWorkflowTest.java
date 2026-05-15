@@ -1,12 +1,14 @@
 package es.altia.domeadapter.backend.issuance.application;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import es.altia.domeadapter.backend.issuance.domain.service.IssuerCoreClientPort;
-import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
+import es.altia.domeadapter.backend.shared.domain.model.dto.IssuerPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.IssuanceResponse;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.retry.LabelCredentialDeliveryPayload;
 import es.altia.domeadapter.backend.shared.domain.model.enums.ActionType;
+import es.altia.domeadapter.backend.shared.domain.service.M2MTokenService;
 import es.altia.domeadapter.backend.shared.domain.service.ProcedureRetryService;
 import es.altia.domeadapter.backend.shared.domain.util.JwtUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import jakarta.validation.Validator;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,22 +35,39 @@ import static org.mockito.Mockito.when;
 class TranslateLegacyIssuanceWorkflowTest {
 
     @Mock
-    private IssuerCoreClientPort externalIssuanceService;
+    private IssuerCoreClientPort issuerCorClientPort;
     @Mock
     private ProcedureRetryService procedureRetryService;
     @Mock
     private JwtUtils jwtUtils;
+    @Mock
+    private ObjectMapper objectMapper;
+
+    @Mock
+    private Validator validator;
+
+    @Mock
+    private M2MTokenService m2MTokenService; //todo remove
 
     private TranslateLegacyIssuanceWorkflow workflow;
 
     @BeforeEach
     void setUp() {
-        workflow = new TranslateLegacyIssuanceWorkflow(externalIssuanceService, procedureRetryService, jwtUtils);
+        workflow = new TranslateLegacyIssuanceWorkflow(
+                issuerCorClientPort,
+                procedureRetryService,
+                jwtUtils,
+                objectMapper,
+                validator,
+                m2MTokenService
+        );
+
+        when(m2MTokenService.getM2MToken()).thenReturn(Mono.empty());
     }
 
     @Test
     void execute_nonLabelCredential_forwardsAndReturnsEmpty() {
-        when(externalIssuanceService.forward(any(), anyString(), anyString()))
+        when(issuerCorClientPort.forward(any(), anyString(), anyString()))
                 .thenReturn(Mono.just(IssuanceResponse.builder().credentialOfferUri("https://issuer/offer").build()));
 
         StepVerifier.create(workflow.execute(buildRequest("LEARCredentialEmployee", null), "token", "idToken"))
@@ -62,7 +82,7 @@ class TranslateLegacyIssuanceWorkflowTest {
         String productSpecId = "https://example.com/product/123";
         String signedCredential = "header.payload.sig";
 
-        when(externalIssuanceService.forward(any(), anyString(), anyString()))
+        when(issuerCorClientPort.forward(any(), anyString(), anyString()))
                 .thenReturn(Mono.just(IssuanceResponse.builder().signedCredential(signedCredential).build()));
         when(jwtUtils.extractCredentialId(signedCredential)).thenReturn(credentialId);
         when(jwtUtils.extractCredentialSubjectId(signedCredential)).thenReturn(productSpecId);
@@ -88,7 +108,7 @@ class TranslateLegacyIssuanceWorkflowTest {
 
     @Test
     void execute_labelCredential_nullSignedCredential_skipsDeliveryPipeline() {
-        when(externalIssuanceService.forward(any(), anyString(), anyString()))
+        when(issuerCorClientPort.forward(any(), anyString(), anyString()))
                 .thenReturn(Mono.just(IssuanceResponse.builder().signedCredential(null).build()));
 
         StepVerifier.create(workflow.execute(buildRequest("gx:LabelCredential", null), "token", "idToken"))
@@ -99,7 +119,7 @@ class TranslateLegacyIssuanceWorkflowTest {
 
     @Test
     void execute_labelCredential_blankSignedCredential_skipsDeliveryPipeline() {
-        when(externalIssuanceService.forward(any(), anyString(), anyString()))
+        when(issuerCorClientPort.forward(any(), anyString(), anyString()))
                 .thenReturn(Mono.just(IssuanceResponse.builder().signedCredential("  ").build()));
 
         StepVerifier.create(workflow.execute(buildRequest("gx:LabelCredential", null), "token", "idToken"))
@@ -110,9 +130,9 @@ class TranslateLegacyIssuanceWorkflowTest {
 
     @Test
     void execute_schemaMapping_labelCredential_mapsToExternal() {
-        ArgumentCaptor<ExternalPreSubmittedCredentialDataRequest> captor =
-                ArgumentCaptor.forClass(ExternalPreSubmittedCredentialDataRequest.class);
-        when(externalIssuanceService.forward(captor.capture(), anyString(), anyString()))
+        ArgumentCaptor<IssuerPreSubmittedCredentialDataRequest> captor =
+                ArgumentCaptor.forClass(IssuerPreSubmittedCredentialDataRequest.class);
+        when(issuerCorClientPort.forward(captor.capture(), anyString(), anyString()))
                 .thenReturn(Mono.just(IssuanceResponse.builder().build()));
 
         StepVerifier.create(workflow.execute(buildRequest("gx:LabelCredential", null), "token", "idToken"))
@@ -123,9 +143,9 @@ class TranslateLegacyIssuanceWorkflowTest {
 
     @Test
     void execute_schemaMapping_learCredentialEmployee_mapsToExternal() {
-        ArgumentCaptor<ExternalPreSubmittedCredentialDataRequest> captor =
-                ArgumentCaptor.forClass(ExternalPreSubmittedCredentialDataRequest.class);
-        when(externalIssuanceService.forward(captor.capture(), anyString(), anyString()))
+        ArgumentCaptor<IssuerPreSubmittedCredentialDataRequest> captor =
+                ArgumentCaptor.forClass(IssuerPreSubmittedCredentialDataRequest.class);
+        when(issuerCorClientPort.forward(captor.capture(), anyString(), anyString()))
                 .thenReturn(Mono.just(IssuanceResponse.builder().build()));
 
         StepVerifier.create(workflow.execute(buildRequest("LEARCredentialEmployee", null), "token", "idToken"))
@@ -136,9 +156,9 @@ class TranslateLegacyIssuanceWorkflowTest {
 
     @Test
     void execute_schemaMapping_unknownSchema_passedThrough() {
-        ArgumentCaptor<ExternalPreSubmittedCredentialDataRequest> captor =
-                ArgumentCaptor.forClass(ExternalPreSubmittedCredentialDataRequest.class);
-        when(externalIssuanceService.forward(captor.capture(), anyString(), anyString()))
+        ArgumentCaptor<IssuerPreSubmittedCredentialDataRequest> captor =
+                ArgumentCaptor.forClass(IssuerPreSubmittedCredentialDataRequest.class);
+        when(issuerCorClientPort.forward(captor.capture(), anyString(), anyString()))
                 .thenReturn(Mono.just(IssuanceResponse.builder().build()));
 
         StepVerifier.create(workflow.execute(buildRequest("customSchema", null), "token", "idToken"))
@@ -149,9 +169,9 @@ class TranslateLegacyIssuanceWorkflowTest {
 
     @Test
     void execute_delivery_labelCredential_noExplicit_usesDefaultLabelDelivery() {
-        ArgumentCaptor<ExternalPreSubmittedCredentialDataRequest> captor =
-                ArgumentCaptor.forClass(ExternalPreSubmittedCredentialDataRequest.class);
-        when(externalIssuanceService.forward(captor.capture(), anyString(), anyString()))
+        ArgumentCaptor<IssuerPreSubmittedCredentialDataRequest> captor =
+                ArgumentCaptor.forClass(IssuerPreSubmittedCredentialDataRequest.class);
+        when(issuerCorClientPort.forward(captor.capture(), anyString(), anyString()))
                 .thenReturn(Mono.just(IssuanceResponse.builder().build()));
 
         StepVerifier.create(workflow.execute(buildRequest("gx:LabelCredential", null), "token", "idToken"))
@@ -162,9 +182,9 @@ class TranslateLegacyIssuanceWorkflowTest {
 
     @Test
     void execute_delivery_nonLabelCredential_noExplicit_usesDefaultDelivery() {
-        ArgumentCaptor<ExternalPreSubmittedCredentialDataRequest> captor =
-                ArgumentCaptor.forClass(ExternalPreSubmittedCredentialDataRequest.class);
-        when(externalIssuanceService.forward(captor.capture(), anyString(), anyString()))
+        ArgumentCaptor<IssuerPreSubmittedCredentialDataRequest> captor =
+                ArgumentCaptor.forClass(IssuerPreSubmittedCredentialDataRequest.class);
+        when(issuerCorClientPort.forward(captor.capture(), anyString(), anyString()))
                 .thenReturn(Mono.just(IssuanceResponse.builder().build()));
 
         StepVerifier.create(workflow.execute(buildRequest("LEARCredentialEmployee", null), "token", "idToken"))
@@ -182,9 +202,9 @@ class TranslateLegacyIssuanceWorkflowTest {
                 .email("test@example.com")
                 .delivery("sms")
                 .build();
-        ArgumentCaptor<ExternalPreSubmittedCredentialDataRequest> captor =
-                ArgumentCaptor.forClass(ExternalPreSubmittedCredentialDataRequest.class);
-        when(externalIssuanceService.forward(captor.capture(), anyString(), anyString()))
+        ArgumentCaptor<IssuerPreSubmittedCredentialDataRequest> captor =
+                ArgumentCaptor.forClass(IssuerPreSubmittedCredentialDataRequest.class);
+        when(issuerCorClientPort.forward(captor.capture(), anyString(), anyString()))
                 .thenReturn(Mono.just(IssuanceResponse.builder().build()));
 
         StepVerifier.create(workflow.execute(request, "token", "idToken"))

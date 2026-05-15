@@ -8,7 +8,7 @@ import es.altia.domeadapter.backend.shared.domain.exception.InvalidCredentialFor
 import es.altia.domeadapter.backend.shared.domain.exception.MissingEmailOwnerException;
 import es.altia.domeadapter.backend.shared.domain.exception.MissingIdTokenHeaderException;
 import es.altia.domeadapter.backend.shared.domain.exception.UnsupportedCredentialSchemaException;
-import es.altia.domeadapter.backend.shared.domain.model.dto.ExternalPreSubmittedCredentialDataRequest;
+import es.altia.domeadapter.backend.shared.domain.model.dto.IssuerPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.credential.LabelCredential;
 import es.altia.domeadapter.backend.shared.domain.model.dto.credential.lear.employee.LEARCredentialEmployee;
@@ -46,103 +46,83 @@ public class TranslateLegacyIssuanceWorkflow {
     private final M2MTokenService m2MTokenService;
 
     public Mono<Void> execute(PreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
-        //todo remove
-        return m2MTokenService.getM2MToken()
+        return m2MTokenService.getM2MToken() // todo remove
                 .doOnNext(token -> log.info("[ISSUANCE] Temporary M2M token for testing: {}", token))
                 .then(executeIssuance(request, bearerToken, idToken));
-
-      
     }
 
     private Mono<Void> executeIssuance(PreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
+        return validateIssuanceRequest(request, idToken)
+                .then(Mono.defer(() -> executeValidatedIssuance(request, bearerToken, idToken)));
+    }
+
+    private Mono<Void> validateIssuanceRequest(PreSubmittedCredentialDataRequest request, String idToken) {
+        return validateInitialIssuanceRequest(request)
+                .then(Mono.defer(() -> validateLabelCredentialIdToken(request, idToken)))
+                .then(Mono.defer(() -> validateCredentialPayload(request)));
+    }
+
+    private Mono<Void> validateInitialIssuanceRequest(PreSubmittedCredentialDataRequest request) {
         if (!JWT_VC_JSON.equals(request.format())) {
             return Mono.error(new FormatUnsupportedException("Format: " + request.format() + " is not supported"));
         }
 
-        if (!request.operationMode().equals(SYNC)) {
-            return Mono.error(new OperationNotSupportedException("operation_mode: " + request.operationMode() + " with schema: " + request.schema()));
+        if (!SYNC.equals(request.operationMode())) {
+            return Mono.error(new OperationNotSupportedException(
+                    "operation_mode: " + request.operationMode() + " with schema: " + request.schema()));
         }
 
         if (!isSupportedSchema(request.schema())) {
             return Mono.error(new UnsupportedCredentialSchemaException(
                     "Unsupported credential schema: '" + request.schema() + "'. Supported schemas are: "
-                            + LABEL_CREDENTIAL_SCHEMA + ", " + LEAR_CREDENTIAL_EMPLOYEE_SCHEMA + ", " + LEAR_CREDENTIAL_MACHINE_SCHEMA));
+                            + LEGACY_LABEL_CREDENTIAL_SCHEMA + ", " + LEGACY_LEAR_CREDENTIAL_EMPLOYEE_SCHEMA + ", " + LEGACY_LEAR_CREDENTIAL_MACHINE_SCHEMA));
         }
 
+        return Mono.empty();
+    }
+
+    private Mono<Void> validateLabelCredentialIdToken(PreSubmittedCredentialDataRequest request, String idToken) {
         if (isLabelCredentialSchema(request.schema()) && (idToken == null || idToken.isBlank())) {
             return Mono.error(new MissingIdTokenHeaderException("Missing required ID Token header for Label credential issuance."));
         }
 
+        return Mono.empty();
+    }
+
+    private Mono<Void> validateCredentialPayload(PreSubmittedCredentialDataRequest request) {
         try {
             validatePayload(request);
+            return Mono.empty();
         } catch (InvalidCredentialFormatException e) {
             return Mono.error(e);
         }
+    }
 
+    private Mono<Void> executeValidatedIssuance(PreSubmittedCredentialDataRequest request, String bearerToken, String idToken) {
         String delivery = resolveDelivery(request);
-        String email;
-        try {
-            email = resolveEmail(request);
-        } catch (MissingEmailOwnerException e) {
-            return Mono.error(e);
-        }
 
-        ExternalPreSubmittedCredentialDataRequest externalRequest =
-                ExternalPreSubmittedCredentialDataRequest.builder()
-                        .schema(resolveExternalSchema(request.schema()))
-                        .payload(request.payload())
-                        .operationMode(request.operationMode())
-                        .email(email)
-                        .delivery(delivery)
-                        .build();
+        return resolveEmailOrError(request)
+                .flatMap(email -> {
+                    IssuerPreSubmittedCredentialDataRequest issuerRequest =
+                            IssuerPreSubmittedCredentialDataRequest.builder()
+                                    .schema(translateSchema(request.schema()))
+                                    .payload(request.payload())
+                                    .operationMode(request.operationMode())
+                                    .email(email)
+                                    .delivery(delivery)
+                                    .build();
 
-        return issuerCoreClient.forward(externalRequest, bearerToken, idToken)
-                .flatMap(response -> {
-                    if (!isLabelCredentialSchema(request.schema())) {
-                        return Mono.empty();
-                    }
-
-                    String signedCredential = response.signedCredential();
-                    if (signedCredential == null || signedCredential.isBlank()) {
-                        log.error("[ISSUANCE] External issuer returned empty credential");
-                        return Mono.empty();
-                    }
-
-                    UUID credentialId = jwtUtils.extractCredentialId(signedCredential);
-                    String productSpecificationId = jwtUtils.extractCredentialSubjectId(signedCredential);
-                    log.info("[ISSUANCE] Label credential issued with id={} productSpecId={}", credentialId, productSpecificationId);
-
-                    LabelCredentialDeliveryPayload payload = LabelCredentialDeliveryPayload.builder()
-                            .responseUri(request.responseUri())
-                            .credentialId(credentialId.toString())
-                            .productSpecificationId(productSpecificationId)
-                            .email(email)
-                            .signedCredential(signedCredential)
-                            .build();
-
-                    log.debug("Label delivery payload: {}", payload);
-
-                    log.info("[ISSUANCE] Firing delivery pipeline for label credential with credentialId={} productSpecId={}",
-                            credentialId, productSpecificationId);
-
-                    procedureRetryService
-                            .handleInitialAction(credentialId, ActionType.UPLOAD_LABEL_TO_RESPONSE_URI, payload)
-                            .subscribeOn(Schedulers.boundedElastic())
-                            .subscribe(
-                                    null,
-                                    e -> log.error("[ISSUANCE] Error during delivery pipeline for credentialId={}: {}", credentialId, e.getMessage())
-                            );
-
-                    return Mono.empty();
+                    return issuerCoreClient.forward(issuerRequest, bearerToken, idToken)
+                            .flatMap(response -> handleLabelCredentialPostResponse(request, response.signedCredential(), email));
                 });
     }
 
     private void validatePayload(PreSubmittedCredentialDataRequest request) {
-        if (LABEL_CREDENTIAL_SCHEMA.equals(request.schema())) {
+        if (LEGACY_LABEL_CREDENTIAL_SCHEMA.equals(request.schema())) {
             validateLabelCredentialPayload(request.payload());
-        } else if (LEAR_CREDENTIAL_EMPLOYEE_SCHEMA.equals(request.schema())) {
+        } else if (LEGACY_LEAR_CREDENTIAL_EMPLOYEE_SCHEMA.equals(request.schema())) {
             validateLearCredentialEmployeePayload(request.payload());
-        } else if (LEAR_CREDENTIAL_MACHINE_SCHEMA.equals(request.schema())) {
+        } else if (LEGACY_LEAR_CREDENTIAL_MACHINE_SCHEMA.equals(request.schema())) {
             validateLearCredentialMachinePayload(request.payload());
         }
     }
@@ -180,16 +160,16 @@ public class TranslateLegacyIssuanceWorkflow {
     }
 
     private boolean isSupportedSchema(String schema) {
-        return LABEL_CREDENTIAL_SCHEMA.equals(schema)
-                || LEAR_CREDENTIAL_EMPLOYEE_SCHEMA.equals(schema)
-                || LEAR_CREDENTIAL_MACHINE_SCHEMA.equals(schema);
+        return LEGACY_LABEL_CREDENTIAL_SCHEMA.equals(schema)
+                || LEGACY_LEAR_CREDENTIAL_EMPLOYEE_SCHEMA.equals(schema)
+                || LEGACY_LEAR_CREDENTIAL_MACHINE_SCHEMA.equals(schema);
     }
 
-    private String resolveExternalSchema(String schema) {
+    private String translateSchema(String schema) {
         return switch (schema) {
-            case LABEL_CREDENTIAL_SCHEMA -> EXTERNAL_LABEL_CREDENTIAL_SCHEMA;
-            case LEAR_CREDENTIAL_EMPLOYEE_SCHEMA -> EXTERNAL_LEAR_CREDENTIAL_EMPLOYEE_SCHEMA;
-            case LEAR_CREDENTIAL_MACHINE_SCHEMA -> EXTERNAL_LEAR_CREDENTIAL_MACHINE_SCHEMA;
+            case LEGACY_LABEL_CREDENTIAL_SCHEMA -> ISSUER_LABEL_CREDENTIAL_SCHEMA;
+            case LEGACY_LEAR_CREDENTIAL_EMPLOYEE_SCHEMA -> ISSUER_LEAR_CREDENTIAL_EMPLOYEE_SCHEMA;
+            case LEGACY_LEAR_CREDENTIAL_MACHINE_SCHEMA -> ISSUER_LEAR_CREDENTIAL_MACHINE_SCHEMA;
             default -> throw new UnsupportedCredentialSchemaException("Unsupported credential schema: " + schema);
         };
     }
@@ -207,18 +187,26 @@ public class TranslateLegacyIssuanceWorkflow {
     }
 
     private boolean isLabelCredentialSchema(String schema) {
-        return LABEL_CREDENTIAL_SCHEMA.equals(schema) || EXTERNAL_LABEL_CREDENTIAL_SCHEMA.equals(schema);
+        return LEGACY_LABEL_CREDENTIAL_SCHEMA.equals(schema) || ISSUER_LABEL_CREDENTIAL_SCHEMA.equals(schema);
+    }
+
+    private Mono<String> resolveEmailOrError(PreSubmittedCredentialDataRequest request) {
+        try {
+            return Mono.justOrEmpty(resolveEmail(request));
+        } catch (MissingEmailOwnerException e) {
+            return Mono.error(e);
+        }
     }
 
     private String resolveEmail(PreSubmittedCredentialDataRequest request) {
-        if (LABEL_CREDENTIAL_SCHEMA.equals(request.schema())) {
+        if (LEGACY_LABEL_CREDENTIAL_SCHEMA.equals(request.schema())) {
             if (request.email() == null || request.email().isBlank()) {
                 throw new MissingEmailOwnerException("Email is required for Label credential issuance.");
             }
             return request.email();
         }
 
-        if (LEAR_CREDENTIAL_MACHINE_SCHEMA.equals(request.schema())) {
+        if (LEGACY_LEAR_CREDENTIAL_MACHINE_SCHEMA.equals(request.schema())) {
             if (request.email() != null && !request.email().isBlank()) {
                 return request.email();
             }
@@ -226,11 +214,55 @@ public class TranslateLegacyIssuanceWorkflow {
             return emailNode.isMissingNode() || emailNode.isNull() ? null : emailNode.asText();
         }
 
-        if (LEAR_CREDENTIAL_EMPLOYEE_SCHEMA.equals(request.schema())) {
+        if (LEGACY_LEAR_CREDENTIAL_EMPLOYEE_SCHEMA.equals(request.schema())) {
             JsonNode emailNode = request.payload().path("mandatee").path("email");
             return emailNode.isMissingNode() || emailNode.isNull() ? null : emailNode.asText();
         }
 
         return request.email();
+    }
+
+    private Mono<Void> handleLabelCredentialPostResponse(
+            PreSubmittedCredentialDataRequest request,
+            String signedCredential,
+            String email
+    ) {
+        if (!isLabelCredentialSchema(request.schema())) {
+            return Mono.empty();
+        }
+
+        if (signedCredential == null || signedCredential.isBlank()) {
+            log.error("[ISSUANCE] Issuer returned empty credential");
+            return Mono.empty();
+        }
+
+        UUID credentialId = jwtUtils.extractCredentialId(signedCredential);
+        String productSpecificationId = jwtUtils.extractCredentialSubjectId(signedCredential);
+
+        log.info("[ISSUANCE] Label credential issued with id={} productSpecId={}", credentialId, productSpecificationId);
+
+        LabelCredentialDeliveryPayload payload = LabelCredentialDeliveryPayload.builder()
+                .responseUri(request.responseUri())
+                .credentialId(credentialId.toString())
+                .productSpecificationId(productSpecificationId)
+                .email(email)
+                .signedCredential(signedCredential)
+                .build();
+
+        log.debug("Label delivery payload: {}", payload);
+
+        log.info("[ISSUANCE] Firing delivery pipeline for label credential with credentialId={} productSpecId={}",
+                credentialId, productSpecificationId);
+
+        procedureRetryService
+                .handleInitialAction(credentialId, ActionType.UPLOAD_LABEL_TO_RESPONSE_URI, payload)
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                        null,
+                        e -> log.error("[ISSUANCE] Error during delivery pipeline for credentialId={}: {}",
+                                credentialId, e.getMessage())
+                );
+
+        return Mono.empty();
     }
 }

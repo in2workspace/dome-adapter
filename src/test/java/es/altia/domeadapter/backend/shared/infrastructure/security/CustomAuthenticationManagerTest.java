@@ -59,7 +59,7 @@ class CustomAuthenticationManagerTest {
         );
 
         lenient().when(appConfig.getVerifierUrl()).thenReturn(VERIFIER_URL);
-        lenient().when(appConfig.getExternalIssuerUrl()).thenReturn(EXTERNAL_ISSUER_URL);
+        lenient().when(appConfig.getIssuerUrl()).thenReturn(EXTERNAL_ISSUER_URL);
     }
 
     @Test
