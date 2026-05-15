@@ -2,10 +2,12 @@ package es.altia.domeadapter.backend.issuance.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import es.altia.domeadapter.backend.issuance.domain.service.IssuerCoreClientPort;
 import es.altia.domeadapter.backend.shared.domain.model.dto.IssuerPreSubmittedCredentialDataRequest;
 import es.altia.domeadapter.backend.shared.domain.model.dto.IssuanceResponse;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
+import es.altia.domeadapter.backend.shared.domain.exception.UnsupportedCredentialSchemaException;
 import es.altia.domeadapter.backend.shared.domain.model.dto.retry.LabelCredentialDeliveryPayload;
 import es.altia.domeadapter.backend.shared.domain.model.enums.ActionType;
 import es.altia.domeadapter.backend.shared.domain.service.M2MTokenService;
@@ -71,6 +73,7 @@ class TranslateLegacyIssuanceWorkflowTest {
                 .thenReturn(Mono.just(IssuanceResponse.builder().credentialOfferUri("https://issuer/offer").build()));
 
         StepVerifier.create(workflow.execute(buildRequest("LEARCredentialEmployee", null), "token", "idToken"))
+                .expectNextCount(1)
                 .verifyComplete();
 
         verifyNoInteractions(procedureRetryService, jwtUtils);
@@ -89,6 +92,7 @@ class TranslateLegacyIssuanceWorkflowTest {
         when(procedureRetryService.handleInitialAction(any(), any(), any())).thenReturn(Mono.empty());
 
         StepVerifier.create(workflow.execute(buildRequest("gx:LabelCredential", "https://response.uri"), "token", "idToken"))
+                .expectNextCount(1)
                 .verifyComplete();
 
         ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
@@ -112,6 +116,7 @@ class TranslateLegacyIssuanceWorkflowTest {
                 .thenReturn(Mono.just(IssuanceResponse.builder().signedCredential(null).build()));
 
         StepVerifier.create(workflow.execute(buildRequest("gx:LabelCredential", null), "token", "idToken"))
+                .expectNextCount(1)
                 .verifyComplete();
 
         verifyNoInteractions(procedureRetryService, jwtUtils);
@@ -123,6 +128,7 @@ class TranslateLegacyIssuanceWorkflowTest {
                 .thenReturn(Mono.just(IssuanceResponse.builder().signedCredential("  ").build()));
 
         StepVerifier.create(workflow.execute(buildRequest("gx:LabelCredential", null), "token", "idToken"))
+                .expectNextCount(1)
                 .verifyComplete();
 
         verifyNoInteractions(procedureRetryService, jwtUtils);
@@ -136,9 +142,10 @@ class TranslateLegacyIssuanceWorkflowTest {
                 .thenReturn(Mono.just(IssuanceResponse.builder().build()));
 
         StepVerifier.create(workflow.execute(buildRequest("gx:LabelCredential", null), "token", "idToken"))
+                .expectNextCount(1)
                 .verifyComplete();
 
-        assertThat(captor.getValue().schema()).isEqualTo("gx.labelcredential.w3c.1");
+        assertThat(captor.getValue().schema()).isEqualTo("gx.labelcredential.w3c.2");
     }
 
     @Test
@@ -149,22 +156,16 @@ class TranslateLegacyIssuanceWorkflowTest {
                 .thenReturn(Mono.just(IssuanceResponse.builder().build()));
 
         StepVerifier.create(workflow.execute(buildRequest("LEARCredentialEmployee", null), "token", "idToken"))
+                .expectNextCount(1)
                 .verifyComplete();
 
-        assertThat(captor.getValue().schema()).isEqualTo("learcredential.employee.w3c.3.json");
+        assertThat(captor.getValue().schema()).isEqualTo("learcredential.employee.w3c.4");
     }
 
     @Test
-    void execute_schemaMapping_unknownSchema_passedThrough() {
-        ArgumentCaptor<IssuerPreSubmittedCredentialDataRequest> captor =
-                ArgumentCaptor.forClass(IssuerPreSubmittedCredentialDataRequest.class);
-        when(issuerCorClientPort.forward(captor.capture(), anyString(), anyString()))
-                .thenReturn(Mono.just(IssuanceResponse.builder().build()));
-
+    void execute_schemaMapping_unknownSchema_throwsUnsupportedSchemaException() {
         StepVerifier.create(workflow.execute(buildRequest("customSchema", null), "token", "idToken"))
-                .verifyComplete();
-
-        assertThat(captor.getValue().schema()).isEqualTo("customSchema");
+                .verifyError(UnsupportedCredentialSchemaException.class);
     }
 
     @Test
@@ -175,6 +176,7 @@ class TranslateLegacyIssuanceWorkflowTest {
                 .thenReturn(Mono.just(IssuanceResponse.builder().build()));
 
         StepVerifier.create(workflow.execute(buildRequest("gx:LabelCredential", null), "token", "idToken"))
+                .expectNextCount(1)
                 .verifyComplete();
 
         assertThat(captor.getValue().delivery()).isEqualTo("email,direct");
@@ -188,6 +190,7 @@ class TranslateLegacyIssuanceWorkflowTest {
                 .thenReturn(Mono.just(IssuanceResponse.builder().build()));
 
         StepVerifier.create(workflow.execute(buildRequest("LEARCredentialEmployee", null), "token", "idToken"))
+                .expectNextCount(1)
                 .verifyComplete();
 
         assertThat(captor.getValue().delivery()).isEqualTo("email");
@@ -195,10 +198,14 @@ class TranslateLegacyIssuanceWorkflowTest {
 
     @Test
     void execute_delivery_explicit_usesProvidedDelivery() {
+        ObjectNode payload = JsonNodeFactory.instance.objectNode();
+        payload.putObject("mandator").put("organizationIdentifier", "VATES-12345678");
+
         PreSubmittedCredentialDataRequest request = PreSubmittedCredentialDataRequest.builder()
                 .schema("LEARCredentialEmployee")
-                .format("jwt_vc")
-                .payload(JsonNodeFactory.instance.objectNode())
+                .format("jwt_vc_json")
+                .operationMode("S")
+                .payload(payload)
                 .email("test@example.com")
                 .delivery("sms")
                 .build();
@@ -208,16 +215,21 @@ class TranslateLegacyIssuanceWorkflowTest {
                 .thenReturn(Mono.just(IssuanceResponse.builder().build()));
 
         StepVerifier.create(workflow.execute(request, "token", "idToken"))
+                .expectNextCount(1)
                 .verifyComplete();
 
         assertThat(captor.getValue().delivery()).isEqualTo("sms");
     }
 
     private PreSubmittedCredentialDataRequest buildRequest(String schema, String responseUri) {
+        ObjectNode payload = JsonNodeFactory.instance.objectNode();
+        payload.putObject("mandator").put("organizationIdentifier", "VATES-12345678");
+
         return PreSubmittedCredentialDataRequest.builder()
                 .schema(schema)
-                .format("jwt_vc")
-                .payload(JsonNodeFactory.instance.objectNode())
+                .format("jwt_vc_json")
+                .operationMode("S")
+                .payload(payload)
                 .email("test@example.com")
                 .responseUri(responseUri)
                 .build();

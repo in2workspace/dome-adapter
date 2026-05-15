@@ -1,7 +1,10 @@
 package es.altia.domeadapter.backend.issuance.infrastructure.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import es.altia.domeadapter.backend.issuance.application.TranslateLegacyIssuanceWorkflow;
+import es.altia.domeadapter.backend.shared.domain.model.dto.IssuanceResponse;
 import es.altia.domeadapter.backend.shared.domain.model.dto.PreSubmittedCredentialDataRequest;
+import es.altia.domeadapter.backend.shared.infrastructure.config.AppConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -22,20 +25,25 @@ class LegacyIssuanceControllerTest {
 
     private TranslateLegacyIssuanceWorkflow translateLegacyIssuanceWorkflow;
     private WebTestClient webTestClient;
+    private AppConfig appConfig;
 
     @BeforeEach
     void setUp() {
         translateLegacyIssuanceWorkflow = mock(TranslateLegacyIssuanceWorkflow.class);
-        webTestClient = WebTestClient.bindToController(new LegacyIssuanceController(translateLegacyIssuanceWorkflow)).build();
+        appConfig = mock(AppConfig.class);
+        when(appConfig.isIssuerDomeAdapterEnabled()).thenReturn(true);
+        webTestClient = WebTestClient.bindToController(
+                new LegacyIssuanceController(translateLegacyIssuanceWorkflow, appConfig, new ObjectMapper())
+        ).build();
     }
 
     @Test
     void issueCredential_returns200_whenWorkflowSucceeds() {
         when(translateLegacyIssuanceWorkflow.execute(any(PreSubmittedCredentialDataRequest.class), anyString(), anyString()))
-                .thenReturn(Mono.empty());
+                .thenReturn(Mono.just(IssuanceResponse.builder().build()));
 
         webTestClient.post()
-                .uri("/api/v1/issuances")
+                .uri("/vci/v1/issuances")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer test-token")
                 .header("X-ID-Token", "id-token")
@@ -55,7 +63,7 @@ class LegacyIssuanceControllerTest {
         when(translateLegacyIssuanceWorkflow.execute(any(), anyString(), anyString())).thenReturn(Mono.error(ex));
 
         webTestClient.post()
-                .uri("/api/v1/issuances")
+                .uri("/vci/v1/issuances")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer test-token")
                 .header("X-ID-Token", "id-token")
@@ -70,7 +78,7 @@ class LegacyIssuanceControllerTest {
         when(translateLegacyIssuanceWorkflow.execute(any(), tokenCaptor.capture(), anyString())).thenReturn(Mono.empty());
 
         webTestClient.post()
-                .uri("/api/v1/issuances")
+                .uri("/vci/v1/issuances")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer actual-token-value")
                 .header("X-ID-Token", "id-token")
@@ -87,7 +95,7 @@ class LegacyIssuanceControllerTest {
         when(translateLegacyIssuanceWorkflow.execute(any(), anyString(), idTokenCaptor.capture())).thenReturn(Mono.empty());
 
         webTestClient.post()
-                .uri("/api/v1/issuances")
+                .uri("/vci/v1/issuances")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer token")
                 .header("X-ID-Token", "my-id-token")
@@ -105,7 +113,7 @@ class LegacyIssuanceControllerTest {
         when(translateLegacyIssuanceWorkflow.execute(requestCaptor.capture(), anyString(), anyString())).thenReturn(Mono.empty());
 
         webTestClient.post()
-                .uri("/api/v1/issuances")
+                .uri("/vci/v1/issuances")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer token")
                 .header("X-ID-Token", "id-token")
